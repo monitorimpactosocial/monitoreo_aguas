@@ -842,32 +842,41 @@ function submitRecord() {
 // ──────────────────────────────────────────────────────────────
 // ÚLTIMOS REGISTROS TABLE
 // ──────────────────────────────────────────────────────────────
+function h(v) {
+  if (v === null || v === undefined || v === '') return '—';
+  return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function fv(v) { return (v !== null && v !== undefined && v !== '') ? v : '—'; }
+
 function loadLastRecords() {
   google.script.run
     .withSuccessHandler(r => {
       const tbody = document.getElementById('tbodyUltimos');
-      if (!r.success || !r.data.length) {
+      if (!r || !r.success || !r.data || !r.data.length) {
         tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-3 small">No hay registros aún.</td></tr>';
         return;
       }
       tbody.innerHTML = r.data.map(rec => {
         const pct = parseFloat(rec['Pct_Cumplimiento']);
         return `<tr>
-          <td class="fw-semibold text-primary small">${rec['ID_Muestra']||'—'}</td>
-          <td>${rec['Punto_ID']||'—'}</td>
-          <td><span class="badge" style="background:var(--azul-muy-claro);color:var(--azul-oscuro)">${rec['Subcuenca']||'—'}</span></td>
-          <td>${rec['Año']||'—'}</td>
-          <td><span class="badge ${rec['Cod_Temporada']==='DS'?'badge-ds':'badge-rs'}">${rec['Temporada']||'—'}</span></td>
-          <td>${rec['pH']||'—'}</td>
-          <td>${rec['OD']||'—'}</td>
-          <td>${rec['Turbidez']||'—'}</td>
-          <td>${rec['DL']||'—'}</td>
-          <td>${rec['FL']||'—'}</td>
+          <td class="fw-semibold text-primary small">${h(rec['ID_Muestra'])}</td>
+          <td>${h(rec['Punto_ID'])}</td>
+          <td><span class="badge" style="background:var(--azul-muy-claro);color:var(--azul-oscuro)">${h(rec['Subcuenca'])}</span></td>
+          <td>${fv(rec['Año'])}</td>
+          <td><span class="badge ${rec['Cod_Temporada']==='DS'?'badge-ds':'badge-rs'}">${h(rec['Temporada'])}</span></td>
+          <td>${h(rec['pH'])}</td>
+          <td>${h(rec['OD'])}</td>
+          <td>${h(rec['Turbidez'])}</td>
+          <td>${fv(rec['DL'])}</td>
+          <td>${fv(rec['FL'])}</td>
           <td>${pctBadge(pct)}</td>
         </tr>`;
       }).join('');
     })
-    .withFailureHandler(() => {})
+    .withFailureHandler(err => {
+      const tbody = document.getElementById('tbodyUltimos');
+      tbody.innerHTML = `<tr><td colspan="11" class="text-center text-danger py-3 small">Error cargando registros: ${h(String(err))}</td></tr>`;
+    })
     .getLastRecords(15);
 }
 
@@ -884,7 +893,7 @@ function loadStats() {
     })
     .withFailureHandler(err => {
       hideLoader();
-      // Still render with empty data + historical fallback
+      showToast('Error cargando estadísticas: ' + String(err), false);
       renderStats({ success: false, cumplTS: [], bySub: [], byPunto: [], paramIncumpl: [] });
     })
     .getStats();

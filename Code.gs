@@ -88,6 +88,33 @@ function doGet(e) {
   initializeSheets_();
   autoImportOnce_();
 
+  if (e && e.parameter && e.parameter.action === 'ping') {
+    const ss = SpreadsheetApp.openById(SS_ID);
+    const sheets = ss.getSheets().map(s => s.getName() + ':' + s.getLastRow());
+    const sh = ss.getSheetByName('BD_PRINCIPAL');
+    const sample = sh && sh.getLastRow() > 1
+      ? sh.getRange(2, 1, 1, Math.min(5, sh.getLastColumn())).getValues()[0]
+      : [];
+    return ContentService
+      .createTextOutput(JSON.stringify({ sheets, sample, lastRow: sh ? sh.getLastRow() : 0 }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  if (e && e.parameter && e.parameter.action === 'records') {
+    const r = getLastRecords(3);
+    return ContentService
+      .createTextOutput(JSON.stringify({ ok: r.success, count: r.data ? r.data.length : 0,
+        first: r.data && r.data.length > 0 ? r.data[0] : null, error: r.error }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  if (e && e.parameter && e.parameter.action === 'stats') {
+    const s = getStats();
+    return ContentService
+      .createTextOutput(JSON.stringify({ ok: s.success, totalRecords: s.totalRecords,
+        bySub: s.bySub, cumplTSlen: s.cumplTS ? s.cumplTS.length : 0,
+        byPuntoLen: s.byPunto ? s.byPunto.length : 0, error: s.error }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
   return HtmlService
     .createTemplateFromFile('index')
     .evaluate()
