@@ -434,6 +434,15 @@ input.ok-limit   { border-color: #28a745 !important; background: #f6fff8; }
 .notice-card .notice-title { font-size: 1.2rem; font-weight: 700; color: var(--c-primary); }
 .notice-card .notice-body { color: #666; font-size: .9rem; margin: 12px 0 24px; }
 
+/* ── INDICADORES TABS ──────────────────────────────────────────── */
+.ind-tab-nav { display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap; }
+.ind-tab-btn { padding:6px 16px; border-radius:20px; border:2px solid var(--c-accent); background:#fff; color:var(--c-accent); font-size:.82rem; font-weight:600; cursor:pointer; transition:all .15s; }
+.ind-tab-btn.active { background:var(--c-accent); color:#fff; }
+.ind-tab-pane { display:none; }
+.ind-tab-pane.active { display:block; }
+.ind-info-card { background:#eef4fa; border-left:4px solid var(--c-accent); border-radius:6px; padding:12px 16px; font-size:.82rem; color:#333; margin-bottom:16px; line-height:1.5; }
+.ind-info-card strong { color:var(--c-primary); }
+
 /* ── RESPONSIVE ─────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .sidebar { position: fixed; top: var(--navbar-h); left: 0; bottom: 0; z-index: 500; transform: translateX(0); }
@@ -469,6 +478,9 @@ input.ok-limit   { border-color: #28a745 !important; background: #f6fff8; }
     </button>
     <button class="nav-tab-btn" id="tab-registro" onclick="showPanel('registro', this)">
       <i class="bi bi-pencil-square"></i><span>Registro</span>
+    </button>
+    <button class="nav-tab-btn" id="tab-indicadores" onclick="showPanel('indicadores', this)">
+      <i class="bi bi-clipboard-data"></i><span>Indicadores</span>
     </button>
   </div>
   <a href="https://docs.google.com/spreadsheets/d/1VmBLNbeUCW1GtxrXz3zsUQl0HdRqc5SSUBdtMywql4U"
@@ -1032,6 +1044,171 @@ input.ok-limit   { border-color: #28a745 !important; background: #f6fff8; }
 
     </div><!-- /panel-registro -->
 
+
+    <!-- ══════════════════════════════════════════════════════════
+         PANEL: INDICADORES DE CUMPLIMIENTO
+    ══════════════════════════════════════════════════════════ -->
+    <div class="panel" id="panel-indicadores">
+
+      <!-- Section header -->
+      <div class="card mb-3">
+        <div class="card-hdr"><i class="bi bi-clipboard-data"></i> Indicadores de Cumplimiento</div>
+        <div class="card-body py-2 px-3" style="font-size:.82rem;color:#555;">
+          Análisis del cumplimiento normativo desde tres perspectivas complementarias.
+        </div>
+      </div>
+
+      <!-- Tab nav -->
+      <div class="ind-tab-nav">
+        <button class="ind-tab-btn active" onclick="switchIndTab('ind1')">
+          <span class="badge bg-secondary me-1">Enfoque 1</span> Por Campaña
+        </button>
+        <button class="ind-tab-btn" onclick="switchIndTab('ind2')">
+          <span class="badge bg-secondary me-1">Enfoque 2</span> En el Tiempo
+        </button>
+        <button class="ind-tab-btn" onclick="switchIndTab('ind3')">
+          <span class="badge bg-secondary me-1">Enfoque 3</span> Evolución del Programa
+        </button>
+      </div>
+
+      <!-- ── PANE 1: Por Campaña ─────────────────────────────── -->
+      <div class="ind-tab-pane active" id="ind1">
+        <div class="ind-info-card">
+          Porcentaje de cumplimiento considerando la totalidad de los parámetros monitoreados en cada campaña,
+          en función de los límites normativos aplicables. Incluye todos los parámetros evaluados en cada año
+          aunque el conjunto varíe entre campañas.
+        </div>
+
+        <div class="card mb-3">
+          <div class="card-hdr"><i class="bi bi-bar-chart-line"></i> % Cumplimiento por Año y Temporada</div>
+          <div class="card-body">
+            <div style="position:relative;height:300px;">
+              <canvas id="chartInd1"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-hdr"><i class="bi bi-table"></i> Detalle por Campaña</div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover mb-0 tbl-compact">
+                <thead>
+                  <tr>
+                    <th>Año</th>
+                    <th>Temporada</th>
+                    <th>N Puntos</th>
+                    <th>DL</th>
+                    <th>FL</th>
+                    <th>Total</th>
+                    <th>% Cumpl.</th>
+                  </tr>
+                </thead>
+                <tbody id="tabInd1Body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div><!-- /ind1 -->
+
+      <!-- ── PANE 2: En el Tiempo ────────────────────────────── -->
+      <div class="ind-tab-pane" id="ind2">
+        <div class="ind-info-card">
+          Porcentaje de cumplimiento calculado únicamente sobre los parámetros monitoreados de manera continua
+          en todas las campañas desde 2021. Permite analizar la evolución temporal sobre una base comparable.
+        </div>
+
+        <div id="contParamInfo" class="alert alert-info py-2 px-3 mb-3" style="font-size:.82rem;">
+          <strong>Parámetros continuos detectados: <span id="contParamCount">—</span></strong>
+          <button class="btn btn-sm btn-link p-0 ms-2" type="button" data-bs-toggle="collapse" data-bs-target="#contParamCollapse">
+            ver lista
+          </button>
+          <div class="collapse mt-1" id="contParamCollapse">
+            <span id="contParamList" style="font-size:.78rem;color:#444;"></span>
+          </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <div class="card h-100">
+              <div class="card-hdr"><i class="bi bi-graph-up"></i> Cumplimiento por Campaña (parámetros continuos)</div>
+              <div class="card-body">
+                <div style="position:relative;height:300px;">
+                  <canvas id="chartInd2Camp"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="card h-100">
+              <div class="card-hdr"><i class="bi bi-bar-chart-horizontal"></i> % Cumplimiento por Punto de Monitoreo</div>
+              <div class="card-body">
+                <div style="position:relative;height:400px;">
+                  <canvas id="chartInd2Punto"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mb-3">
+          <div class="card-hdr"><i class="bi bi-grid-3x3"></i> Cumplimiento por Punto × Campaña (parámetros continuos)</div>
+          <div class="card-body p-2">
+            <div style="overflow-x:auto;">
+              <table id="tabInd2" class="table table-bordered mb-0" style="white-space:nowrap;"></table>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-hdr"><i class="bi bi-arrow-left-right"></i> Comparación vs Enfoque 1</div>
+          <div class="card-body py-2 px-3" style="font-size:.83rem;" id="compCard">
+            —
+          </div>
+        </div>
+      </div><!-- /ind2 -->
+
+      <!-- ── PANE 3: Evolución del Programa ─────────────────── -->
+      <div class="ind-tab-pane" id="ind3">
+        <div class="ind-info-card">
+          Con el fin de fortalecer el programa, a lo largo del período evaluado se han incorporado progresivamente
+          nuevos parámetros. En 2024 se incorporaron parámetros vinculados a las actividades forestales; en 2025
+          se sumaron parámetros fisicoquímicos adicionales para mejorar la caracterización del sistema hídrico.
+        </div>
+
+        <div class="card mb-3">
+          <div class="card-hdr"><i class="bi bi-bar-chart-steps"></i> Incorporación de Parámetros por Año</div>
+          <div class="card-body">
+            <div style="position:relative;height:300px;">
+              <canvas id="chartInd3"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-hdr"><i class="bi bi-list-check"></i> Catálogo de Parámetros</div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover mb-0 tbl-compact">
+                <thead>
+                  <tr>
+                    <th>Parámetro</th>
+                    <th>Unidad</th>
+                    <th>Límite Normativo</th>
+                    <th>Primera Campaña</th>
+                    <th>Tipo</th>
+                    <th class="text-center">Continuo</th>
+                  </tr>
+                </thead>
+                <tbody id="tabInd3Body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div><!-- /ind3 -->
+
+    </div><!-- /panel-indicadores -->
+
   </main>
 </div><!-- /app-shell -->
 
@@ -1237,6 +1414,7 @@ function showPanel(name, btn) {
       else App.mapInstance.invalidateSize();
     }, 100);
   }
+  if (name === 'indicadores') renderIndicadores();
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -2420,6 +2598,432 @@ function submitRecord() {
       showToast('Error al enviar: ' + err.message, false);
     });
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   INDICADORES DE CUMPLIMIENTO — 3 ENFOQUES
+═══════════════════════════════════════════════════════════════════ */
+
+/** Switch between Indicadores sub-tabs */
+function switchIndTab(name) {
+  document.querySelectorAll('.ind-tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.ind-tab-pane').forEach(p => p.classList.remove('active'));
+  document.getElementById(name).classList.add('active');
+  // Find matching button by onclick attribute
+  document.querySelectorAll('.ind-tab-btn').forEach(b => {
+    if (b.getAttribute('onclick') && b.getAttribute('onclick').includes("'" + name + "'")) {
+      b.classList.add('active');
+    }
+  });
+}
+
+// All measurable parameters (with and without regulatory limits)
+const ALL_MEASURED_PARAMS = [
+  'Temperatura','Color','pH','Conductividad','OD','Turbidez',
+  'Mat_Flotantes','TDS','Aceites_Grasas','DBO5',
+  'Fosforo_Total','Nitrogeno_Total','Nitratos','Amoniaco','Nitritos',
+  'Aluminio','Hierro_Soluble','Clorofila_A','Calcio','Potasio','SST','Magnesio',
+  'Coliformes_Totales','Coliformes_Fecales','E_coli',
+  'Glifosato','AMPA','Tebuconazole','Sulfluramida','Glufosinato',
+  'Flumioxazin','Fipronil','Isoxaflutole','Haloxifop'
+];
+
+// Regulatory limits for numerical compliance check (Res. MADES 222/02 + standards)
+const REG_LIMITS = {
+  pH:                 { min: 6.0, max: 9.0,   unit: '—',          label: 'pH' },
+  OD:                 { min: 5.0,              unit: 'mg/L',       label: 'Oxígeno Disuelto' },
+  Turbidez:           { max: 100,              unit: 'NTU',        label: 'Turbidez' },
+  DBO5:               { max: 5,                unit: 'mg/L',       label: 'DBO5' },
+  Fosforo_Total:      { max: 0.05,             unit: 'mg/L',       label: 'Fósforo Total' },
+  Nitrogeno_Total:    { max: 0.6,              unit: 'mg/L',       label: 'Nitrógeno Total' },
+  Nitratos:           { max: 10,               unit: 'mg/L',       label: 'Nitratos' },
+  Amoniaco:           { max: 0.02,             unit: 'mg/L',       label: 'Amoniaco' },
+  Nitritos:           { max: 1,                unit: 'mg/L',       label: 'Nitritos' },
+  Aluminio:           { max: 0.2,              unit: 'mg/L',       label: 'Aluminio' },
+  Hierro_Soluble:     { max: 0.3,              unit: 'mg/L',       label: 'Hierro Soluble' },
+  Coliformes_Fecales: { max: 1000,             unit: 'UFC/100mL',  label: 'Col. Fecales' },
+  Glifosato:          { max: 0.007,            unit: 'mg/L',       label: 'Glifosato' },
+  AMPA:               { max: 0.007,            unit: 'mg/L',       label: 'AMPA' },
+  Tebuconazole:       { max: 0.007,            unit: 'mg/L',       label: 'Tebuconazole' },
+  Sulfluramida:       { max: 0.007,            unit: 'mg/L',       label: 'Sulfluramida' },
+  Glufosinato:        { max: 0.007,            unit: 'mg/L',       label: 'Glufosinato' },
+  Flumioxazin:        { max: 0.007,            unit: 'mg/L',       label: 'Flumioxazin' },
+  Fipronil:           { max: 0.007,            unit: 'mg/L',       label: 'Fipronil' },
+  Isoxaflutole:       { max: 0.007,            unit: 'mg/L',       label: 'Isoxaflutole' },
+  Haloxifop:          { max: 0.007,            unit: 'mg/L',       label: 'Haloxifop' },
+  // Qualitative (compliance = "Ausentes"):
+  Mat_Flotantes:      { qualitative: 'Ausentes', unit: '—',        label: 'Mat. Flotantes' },
+  Aceites_Grasas:     { qualitative: 'Ausentes', unit: '—',        label: 'Aceites y Grasas' },
+};
+
+// Cache for detected continuous params (computed once on data load)
+App.continuousParams = null;
+App.paramFirstCampaign = null;
+
+/** Returns true if a raw parameter value counts as "measured" (not empty/null) */
+function isMeasured(v) {
+  if (v === '' || v == null) return false;
+  const s = String(v).trim();
+  return s !== '' && s !== 'N/A' && s !== '-';
+}
+
+/** Check if a measured value is within regulatory limits */
+function isWithinLimit(raw, lim) {
+  if (!lim) return null; // no limit defined, not evaluated
+  if (lim.qualitative) {
+    const s = String(raw).trim().toLowerCase();
+    return s === 'ausentes' || s === 'ausente' || s.startsWith('aus');
+  }
+  const v = parseNumeric(raw);
+  if (isNaN(v)) return null; // can't evaluate
+  const ok = (lim.min == null || v >= lim.min) && (lim.max == null || v <= lim.max);
+  return ok;
+}
+
+/**
+ * Detects which parameters were measured in ALL campaigns present in data.
+ * Returns { continuous: [...], added: [{param, firstCamp}], campaigns: [...sorted] }
+ */
+function detectContinuousParams(data) {
+  // Build sorted campaign list
+  const campSet = new Set();
+  data.forEach(r => {
+    const yr = getAnio(r); const s = r.Cod_Temporada;
+    if (yr && s) campSet.add(yr + '|' + s);
+  });
+  const campaigns = [...campSet].sort((a, b) => {
+    const [ya, sa] = a.split('|'); const [yb, sb] = b.split('|');
+    return ya !== yb ? ya - yb : (sa === 'RS' ? -1 : 1);
+  });
+  const nCamps = campaigns.length;
+
+  const continuous = [], added = [];
+
+  ALL_MEASURED_PARAMS.forEach(p => {
+    const campsWithParam = new Set();
+    data.forEach(r => {
+      if (!isMeasured(r[p])) return;
+      const yr = getAnio(r); const s = r.Cod_Temporada;
+      if (yr && s) campsWithParam.add(yr + '|' + s);
+    });
+
+    if (campsWithParam.size === nCamps) {
+      continuous.push(p);
+    } else {
+      const firstCamp = campaigns.find(c => campsWithParam.has(c)) || null;
+      added.push({ param: p, firstCamp, nCamps: campsWithParam.size });
+    }
+  });
+
+  return { continuous, added, campaigns };
+}
+
+/**
+ * For a given array of records and parameter set, recalculate DL and FL
+ * using REG_LIMITS. Only counts parameters that have regulatory limits defined.
+ * Returns { dl, fl, total, pct }
+ */
+function calcCompliance(records, paramSet) {
+  let dl = 0, fl = 0;
+  records.forEach(r => {
+    paramSet.forEach(p => {
+      const lim = REG_LIMITS[p];
+      if (!lim) return; // no limit — not counted in DL/FL
+      if (!isMeasured(r[p])) return; // not measured in this record
+      const ok = isWithinLimit(r[p], lim);
+      if (ok === null) return;
+      if (ok) dl++; else fl++;
+    });
+  });
+  const total = dl + fl;
+  const pct = total > 0 ? Math.round(dl / total * 1000) / 10 : null;
+  return { dl, fl, total, pct };
+}
+
+/** Render all 3 indicators panels from App.filteredData */
+function renderIndicadores() {
+  if (!App.continuousParams) {
+    const detected = detectContinuousParams(App.data); // use ALL data for detection
+    App.continuousParams = detected.continuous;
+    App.paramFirstCampaign = detected;
+  }
+
+  renderInd1();
+  renderInd2();
+  renderInd3();
+}
+
+/** Enfoque 1: Por Campaña — uses existing DL/FL from data */
+function renderInd1() {
+  const fd = App.filteredData;
+
+  // Group by year × season
+  const groups = {};
+  fd.forEach(r => {
+    const yr = getAnio(r); const s = r.Cod_Temporada;
+    if (!yr || !s) return;
+    const key = yr + '|' + s;
+    if (!groups[key]) groups[key] = { yr, s, recs: [] };
+    groups[key].recs.push(r);
+  });
+
+  const sorted = Object.values(groups).sort((a, b) =>
+    a.yr !== b.yr ? a.yr - b.yr : (a.s === 'RS' ? -1 : 1)
+  );
+
+  const years = [...new Set(sorted.map(g => g.yr))];
+  const rsData = years.map(y => {
+    const g = sorted.find(g => g.yr === y && g.s === 'RS');
+    if (!g) return null;
+    const dl = g.recs.reduce((s,r) => s+(Number(r.DL)||0), 0);
+    const fl = g.recs.reduce((s,r) => s+(Number(r.FL)||0), 0);
+    return dl+fl > 0 ? Math.round(dl/(dl+fl)*1000)/10 : null;
+  });
+  const dsData = years.map(y => {
+    const g = sorted.find(g => g.yr === y && g.s === 'DS');
+    if (!g) return null;
+    const dl = g.recs.reduce((s,r) => s+(Number(r.DL)||0), 0);
+    const fl = g.recs.reduce((s,r) => s+(Number(r.FL)||0), 0);
+    return dl+fl > 0 ? Math.round(dl/(dl+fl)*1000)/10 : null;
+  });
+
+  destroyChart('chartInd1');
+  App.charts['chartInd1'] = new Chart(document.getElementById('chartInd1'), {
+    type: 'bar',
+    data: {
+      labels: years,
+      datasets: [
+        { label: 'Lluviosa (RS)', data: rsData, backgroundColor: '#2E75B6CC', borderRadius: 5 },
+        { label: 'Seca (DS)',     data: dsData, backgroundColor: '#ED7D31CC', borderRadius: 5 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', labels: { font: { size: 11 } } },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.raw != null ? ctx.raw.toFixed(1)+'%' : 'S/D'}` } }
+      },
+      scales: {
+        y: { min: 55, max: 100, ticks: { callback: v => v+'%', font:{size:10} }, grid:{color:'#eee'} },
+        x: { grid: { display: false }, ticks: { font:{size:10} } }
+      }
+    }
+  });
+
+  // Table
+  const tbody = document.getElementById('tabInd1Body');
+  tbody.innerHTML = sorted.map(g => {
+    const dl = g.recs.reduce((s,r) => s+(Number(r.DL)||0), 0);
+    const fl = g.recs.reduce((s,r) => s+(Number(r.FL)||0), 0);
+    const total = dl + fl;
+    const pct = total > 0 ? (dl/total*100).toFixed(1) : '—';
+    const pctN = total > 0 ? dl/total*100 : null;
+    const cls = pctN == null ? '' : pctN >= 85 ? 'table-success' : pctN >= 70 ? 'table-warning' : 'table-danger';
+    const badge = g.s === 'RS'
+      ? '<span class="badge" style="background:#2E75B6;">Lluviosa RS</span>'
+      : '<span class="badge" style="background:#ED7D31;">Seca DS</span>';
+    return `<tr class="${cls}">
+      <td>${g.yr}</td><td>${badge}</td><td>${g.recs.length}</td>
+      <td>${dl}</td><td>${fl}</td><td>${total}</td>
+      <td><strong>${pct}${pctN!=null?'%':''}</strong></td>
+    </tr>`;
+  }).join('');
+}
+
+/** Enfoque 2: En el Tiempo — recalculates using continuous params only */
+function renderInd2() {
+  const fd = App.filteredData;
+  const contParams = App.continuousParams;
+
+  // Update info
+  document.getElementById('contParamCount').textContent = contParams.length;
+  document.getElementById('contParamList').textContent = contParams.join(', ');
+
+  // Group by campaign
+  const groups = {};
+  fd.forEach(r => {
+    const yr = getAnio(r); const s = r.Cod_Temporada;
+    if (!yr || !s) return;
+    const key = yr + '|' + s;
+    if (!groups[key]) groups[key] = { yr, s, recs: [] };
+    groups[key].recs.push(r);
+  });
+  const sorted = Object.values(groups).sort((a,b) =>
+    a.yr !== b.yr ? a.yr - b.yr : (a.s==='RS'?-1:1)
+  );
+
+  const campLabels = sorted.map(g => `${g.yr} ${g.s}`);
+  const campPct    = sorted.map(g => calcCompliance(g.recs, contParams).pct);
+  const campN      = sorted.map(g => g.recs.length);
+
+  destroyChart('chartInd2Camp');
+  App.charts['chartInd2Camp'] = new Chart(document.getElementById('chartInd2Camp'), {
+    type: 'bar',
+    data: {
+      labels: campLabels,
+      datasets: [
+        { type:'line', label:'% Cumplimiento', data: campPct, borderColor:'#1F4E79',
+          backgroundColor:'#1F4E7933', pointRadius:5, pointBackgroundColor:'#1F4E79',
+          tension:.3, yAxisID:'y', fill:false },
+        { type:'bar', label:'N° Puntos', data: campN, backgroundColor:'#BDD7EEaa',
+          borderRadius:4, yAxisID:'y2' }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{position:'top',labels:{font:{size:10}}},
+        tooltip:{callbacks:{label:ctx=>ctx.dataset.yAxisID==='y'?` ${ctx.raw!=null?ctx.raw.toFixed(1)+'%':'-'}`:` ${ctx.raw} puntos`}} },
+      scales:{
+        y:{ min:55, max:100, position:'left', ticks:{callback:v=>v+'%',font:{size:9}}, grid:{color:'#eee'} },
+        y2:{ position:'right', min:0, ticks:{font:{size:9}}, grid:{display:false} },
+        x:{ ticks:{font:{size:9}}, grid:{display:false} }
+      }
+    }
+  });
+
+  // By punto
+  const byPunto = {};
+  fd.forEach(r => {
+    const p = r.Punto_ID; if (!p) return;
+    if (!byPunto[p]) byPunto[p] = { sub: r.Subcuenca, recs: [] };
+    byPunto[p].recs.push(r);
+  });
+  const puntoEntries = Object.entries(byPunto)
+    .map(([p, v]) => ({ p, sub: v.sub, ...calcCompliance(v.recs, contParams) }))
+    .filter(e => e.total > 0)
+    .sort((a,b) => (b.pct||0)-(a.pct||0));
+
+  destroyChart('chartInd2Punto');
+  App.charts['chartInd2Punto'] = new Chart(document.getElementById('chartInd2Punto'), {
+    type:'bar',
+    data:{
+      labels: puntoEntries.map(e=>e.p),
+      datasets:[{ label:'% Cumplimiento', indexAxis:'y',
+        data: puntoEntries.map(e=>e.pct),
+        backgroundColor: puntoEntries.map(e=>e.pct==null?'#aaa':e.pct>=85?'#28a74599':e.pct>=70?'#fd7e1499':'#dc354599'),
+        borderRadius:3 }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>` ${ctx.raw!=null?ctx.raw.toFixed(1)+'%':'-'}`}} },
+      scales:{
+        x:{min:0,max:100,ticks:{callback:v=>v+'%',font:{size:9}}},
+        y:{ticks:{font:{size:8}},grid:{display:false}}
+      }
+    }
+  });
+
+  // Heatmap table by punto × campaign
+  const campKeys = sorted.map(g => g.yr+'|'+g.s);
+  const campLabelsShort = sorted.map(g => `${g.yr} ${g.s}`);
+
+  let tableHtml = '<thead><tr><th style="min-width:140px;position:sticky;left:0;background:#1F4E79;color:#fff;font-size:.75rem;">Punto</th>';
+  campLabelsShort.forEach(l => { tableHtml += `<th style="font-size:.72rem;text-align:center;background:#1F4E79;color:#fff;">${l}</th>`; });
+  tableHtml += '<th style="font-size:.72rem;text-align:center;background:#1a3d5c;color:#fff;">Promedio</th></tr></thead><tbody>';
+
+  puntoEntries.forEach(e => {
+    tableHtml += `<tr><td style="position:sticky;left:0;background:#f8f9fa;font-size:.72rem;font-weight:600;white-space:nowrap;">${esc(e.p)}</td>`;
+    const vals = campKeys.map(ck => {
+      const [yr, s] = ck.split('|');
+      const recs = fd.filter(r => String(getAnio(r))===yr && r.Cod_Temporada===s && r.Punto_ID===e.p);
+      if (!recs.length) return null;
+      return calcCompliance(recs, contParams).pct;
+    });
+    vals.forEach(v => {
+      const bg = v==null?'#e9ecef':v>=85?'#c6efce':v>=70?'#ffeb9c':'#ffc7ce';
+      const col = v==null?'#999':v>=85?'#375623':v>=70?'#7d6608':'#9c0006';
+      tableHtml += `<td style="text-align:center;background:${bg};color:${col};font-size:.72rem;font-weight:600;">${v!=null?v.toFixed(0)+'%':'—'}</td>`;
+    });
+    tableHtml += `<td style="text-align:center;background:#deeaf1;font-size:.72rem;font-weight:700;">${e.pct!=null?e.pct.toFixed(1)+'%':'—'}</td></tr>`;
+  });
+  tableHtml += '</tbody>';
+  document.getElementById('tabInd2').innerHTML = tableHtml;
+
+  // Comparison card
+  const totE1 = (() => {
+    const dl = fd.reduce((s,r)=>s+(Number(r.DL)||0),0);
+    const fl = fd.reduce((s,r)=>s+(Number(r.FL)||0),0);
+    return dl+fl>0?Math.round(dl/(dl+fl)*1000)/10:null;
+  })();
+  const totE2 = calcCompliance(fd, contParams).pct;
+  const diff = (totE1!=null&&totE2!=null) ? (totE2-totE1).toFixed(1) : null;
+  document.getElementById('compCard').innerHTML = diff != null
+    ? `% Cumplimiento Enfoque 1 (todas campañas): <strong>${totE1.toFixed(1)}%</strong> &nbsp;|&nbsp;
+       % Cumplimiento Enfoque 2 (parámetros continuos): <strong>${totE2.toFixed(1)}%</strong> &nbsp;|&nbsp;
+       Diferencia: <strong style="color:${Number(diff)>=0?'#28a745':'#dc3545'}">${Number(diff)>=0?'+':''}${diff}%</strong>`
+    : 'Datos insuficientes para comparar.';
+}
+
+/** Enfoque 3: Evolución del Programa */
+function renderInd3() {
+  const detected = App.paramFirstCampaign;
+  if (!detected) return;
+
+  // Categorize: continuous, added2024, added2025, unknown
+  function campYear(ck) { return ck ? parseInt(ck.split('|')[0]) : null; }
+
+  const contCount = detected.continuous.length;
+  const added2024 = detected.added.filter(a => campYear(a.firstCamp) === 2024);
+  const added2025 = detected.added.filter(a => campYear(a.firstCamp) === 2025);
+
+  const allCamps = detected.campaigns;
+  const years = [2021, 2022, 2023, 2024, 2025].filter(y =>
+    allCamps.some(c => c.startsWith(y+'|'))
+  );
+
+  destroyChart('chartInd3');
+  App.charts['chartInd3'] = new Chart(document.getElementById('chartInd3'), {
+    type:'bar',
+    data:{
+      labels: years,
+      datasets:[
+        { label:`Parámetros continuos (${contCount})`,
+          data: years.map(() => contCount), backgroundColor:'#2E75B6bb', borderRadius:3 },
+        { label:`Incorporados 2024 (${added2024.length})`,
+          data: years.map(y => y >= 2024 ? added2024.length : 0), backgroundColor:'#ED7D31bb', borderRadius:3 },
+        { label:`Incorporados 2025 (${added2025.length})`,
+          data: years.map(y => y >= 2025 ? added2025.length : 0), backgroundColor:'#7030A0bb', borderRadius:3 },
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{position:'top',labels:{font:{size:11}}},
+        tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.raw} parámetros`}} },
+      scales:{
+        x:{ stacked:true, grid:{display:false}, ticks:{font:{size:10}} },
+        y:{ stacked:true, ticks:{font:{size:10}}, grid:{color:'#eee'} }
+      }
+    }
+  });
+
+  // Table
+  const allRows = [
+    ...detected.continuous.map(p => ({ p, firstCamp:'2021|RS', type:'Continuo', cont:true })),
+    ...detected.added.map(a => ({ p:a.param, firstCamp:a.firstCamp||'?', type: campYear(a.firstCamp)===2024?'Incorporado 2024':campYear(a.firstCamp)===2025?'Incorporado 2025':'Otro', cont:false }))
+  ].sort((a,b) => a.firstCamp.localeCompare(b.firstCamp) || a.p.localeCompare(b.p));
+
+  document.getElementById('tabInd3Body').innerHTML = allRows.map(row => {
+    const lim = REG_LIMITS[row.p];
+    const limStr = !lim ? '—' : lim.qualitative ? `= ${lim.qualitative}` :
+      [lim.min!=null?`≥ ${lim.min}`:null, lim.max!=null?`≤ ${lim.max}`:null].filter(Boolean).join(' / ');
+    const unit = lim ? lim.unit : '—';
+    const label = lim ? lim.label : row.p.replace(/_/g,' ');
+    const firstStr = row.firstCamp === '?' ? '—' : row.firstCamp.replace('|', ' ');
+    const typeBadge = row.type === 'Continuo'
+      ? `<span class="badge" style="background:#2E75B6;">${row.type}</span>`
+      : row.type.includes('2024')
+        ? `<span class="badge" style="background:#ED7D31;">${row.type}</span>`
+        : `<span class="badge" style="background:#7030A0;">${row.type}</span>`;
+    const contBadge = row.cont ? '<span class="badge bg-success">✓</span>' : '<span class="badge bg-secondary">—</span>';
+    return `<tr style="font-size:.77rem;">
+      <td><strong>${esc(label)}</strong></td>
+      <td>${esc(unit)}</td>
+      <td>${esc(limStr)}</td>
+      <td>${esc(firstStr)}</td>
+      <td>${typeBadge}</td>
+      <td class="text-center">${contBadge}</td>
+    </tr>`;
+  }).join('');
 }
 
 /* ════════════════════════════════════════════════════════════════
