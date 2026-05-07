@@ -634,6 +634,15 @@ input.ok-limit   { border-color:#28a745 !important; background:#f6fff8; }
 <script>
 'use strict';
 
+// Redirect to live Apps Script app if served outside Google's runtime
+// (e.g. GitHub Pages, local file), where google.script.run is unavailable.
+(function() {
+  var LIVE = 'https://script.google.com/macros/s/AKfycbzoW7B-phIQv-QpcLXpVb91ivhYLjqQU5D0NI6PD--shXCsGpmBR0HIpybs5eTAL8wT-w/exec';
+  if (typeof google === 'undefined' || !google.script) {
+    window.location.replace(LIVE);
+  }
+})();
+
 // ──────────────────────────────────────────────────────────────
 // GLOBAL STATE
 // ──────────────────────────────────────────────────────────────
