@@ -63,11 +63,31 @@ const CUMPL_HISTORICO = [
 ];
 
 // =====================================================================
-// HTTP ENTRY POINT
+// HTTP ENTRY POINTS
 // =====================================================================
+
+function doPost(e) {
+  try {
+    const payload = JSON.parse(e.postData.contents);
+    if (payload.action === 'importBulk') {
+      return ContentService
+        .createTextOutput(JSON.stringify(importHistoricalBulk(payload.records)))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    return ContentService
+      .createTextOutput(JSON.stringify({ success: false, error: 'Unknown action' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch(err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ success: false, error: err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
 
 function doGet(e) {
   initializeSheets_();
+  autoImportOnce_();
+
   return HtmlService
     .createTemplateFromFile('index')
     .evaluate()
@@ -117,6 +137,61 @@ function initializeSheets_() {
 // =====================================================================
 // DATA ACCESS FUNCTIONS
 // =====================================================================
+
+/**
+ * Auto-imports HISTORICAL_DATA from DataImport.gs once (only when BD_PRINCIPAL is empty).
+ */
+function autoImportOnce_() {
+  try {
+    if (typeof HISTORICAL_DATA === 'undefined' || !HISTORICAL_DATA.length) return;
+    const ss = SpreadsheetApp.openById(SS_ID);
+    const sh = ss.getSheetByName('BD_PRINCIPAL');
+    if (!sh || sh.getLastRow() > 1) return; // already has data
+    importHistoricalBulk(HISTORICAL_DATA);
+    console.log('autoImportOnce_: imported ' + HISTORICAL_DATA.length + ' records');
+  } catch(err) {
+    console.error('autoImportOnce_:', err);
+  }
+}
+
+/**
+ * Bulk-imports historical records (appends if empty, replaces if sheet has data).
+ * Called via doPost with { action: 'importBulk', records: [...] }.
+ */
+function importHistoricalBulk(records) {
+  try {
+    initializeSheets_();
+    const ss = SpreadsheetApp.openById(SS_ID);
+    const sh = ss.getSheetByName('BD_PRINCIPAL');
+    const sheetHeaders = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String);
+
+    // Clear existing data rows, keep header
+    if (sh.getLastRow() > 1) {
+      sh.deleteRows(2, sh.getLastRow() - 1);
+    }
+
+    const rows = records.map(rec =>
+      sheetHeaders.map(h => (rec[h] !== undefined && rec[h] !== null && rec[h] !== '') ? rec[h] : '')
+    );
+
+    if (rows.length > 0) {
+      sh.getRange(2, 1, rows.length, sheetHeaders.length).setValues(rows);
+      SpreadsheetApp.flush();
+      // Alternate row shading
+      for (let i = 0; i < rows.length; i++) {
+        if (i % 2 === 1) {
+          sh.getRange(i + 2, 1, 1, sheetHeaders.length).setBackground('#DEEAF1');
+        }
+      }
+    }
+
+    SpreadsheetApp.flush();
+    return { success: true, imported: rows.length, rowCount: sh.getLastRow() - 1,
+             message: rows.length + ' registros importados correctamente.' };
+  } catch(err) {
+    return { success: false, error: err.toString() };
+  }
+}
 
 /**
  * Returns all records from BD_PRINCIPAL as array of objects.
