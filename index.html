@@ -1069,6 +1069,9 @@ input.ok-limit   { border-color: #28a745 !important; background: #f6fff8; }
         <button class="ind-tab-btn" onclick="switchIndTab('ind3')">
           <span class="badge bg-secondary me-1">Enfoque 3</span> Evolución del Programa
         </button>
+        <button class="ind-tab-btn" onclick="switchIndTab('ind-entsal')">
+          <i class="bi bi-arrows-expand-vertical me-1"></i> Entrada / Salida
+        </button>
       </div>
 
       <!-- ── PANE 1: Por Campaña ─────────────────────────────── -->
@@ -1126,6 +1129,25 @@ input.ok-limit   { border-color: #28a745 !important; background: #f6fff8; }
           <div class="collapse mt-1" id="contParamCollapse">
             <span id="contParamList" style="font-size:.78rem;color:#444;"></span>
           </div>
+        </div>
+
+        <!-- Point filter bar -->
+        <div class="d-flex flex-wrap gap-2 align-items-center mb-3 p-2" style="background:#f0f4f8;border-radius:8px;">
+          <span style="font-size:.8rem;font-weight:600;color:#444;white-space:nowrap;">
+            <i class="bi bi-geo-alt me-1"></i>Filtro de puntos:
+          </span>
+          <button class="btn btn-sm btn-primary" id="ptf-all" onclick="setInd2PointFilter('all')" style="font-size:.78rem;">
+            Todos los puntos
+          </button>
+          <button class="btn btn-sm btn-outline-primary" id="ptf-cont" onclick="setInd2PointFilter('cont')" style="font-size:.78rem;">
+            <i class="bi bi-calendar-check me-1"></i>Continuos 2021-2025
+            <span class="badge bg-secondary ms-1" id="ptfContN">—</span>
+          </button>
+          <button class="btn btn-sm btn-outline-primary" id="ptf-2024" onclick="setInd2PointFilter('2024')" style="font-size:.78rem;">
+            <i class="bi bi-arrow-up-right me-1"></i>Activos desde 2024
+            <span class="badge bg-secondary ms-1" id="ptf2024N">—</span>
+          </button>
+          <span id="ptfActiveNote" class="ms-1" style="font-size:.76rem;color:#666;font-style:italic;display:none;"></span>
         </div>
 
         <div class="row g-3 mb-3">
@@ -1206,6 +1228,52 @@ input.ok-limit   { border-color: #28a745 !important; background: #f6fff8; }
           </div>
         </div>
       </div><!-- /ind3 -->
+
+      <!-- ── PANE Entrada/Salida ────────────────────────────────── -->
+      <div class="ind-tab-pane" id="ind-entsal">
+        <div class="ind-info-card">
+          Compara la calidad del agua en los puntos de <strong>entrada</strong> y <strong>salida</strong>
+          del perímetro de la estancia a lo largo del tiempo. Permite evaluar si la actividad productiva
+          genera un impacto en la calidad hídrica de cada cauce monitoreado, y ver la evolución 2021–2025.
+          <br><small class="text-muted">Los pares se detectan automáticamente por la convención de nomenclatura (1XX = entrada, 3XX = salida del mismo cauce).</small>
+        </div>
+
+        <div class="card mb-3">
+          <div class="card-hdr"><i class="bi bi-water"></i> Pares Entrada/Salida Detectados</div>
+          <div class="card-body" id="entSalSelectorArea">
+            <div class="text-muted" style="font-size:.85rem;">Cargando pares…</div>
+          </div>
+        </div>
+
+        <div id="entSalContent" class="d-none">
+          <div class="card mb-3">
+            <div class="card-hdr" id="entSalDetailHdr"><i class="bi bi-graph-up-arrow"></i> Evolución del Cumplimiento: Entrada vs Salida</div>
+            <div class="card-body">
+              <div style="position:relative;height:300px;">
+                <canvas id="chartEntSal"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="card mb-3">
+            <div class="card-hdr"><i class="bi bi-bar-chart-horizontal-fill"></i> Comparación por Parámetro (última campaña disponible)</div>
+            <div class="card-body">
+              <div style="position:relative;height:320px;">
+                <canvas id="chartEntSalParam"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-hdr"><i class="bi bi-table"></i> Valores por Campaña — Parámetros con Límite Normativo</div>
+            <div class="card-body p-2">
+              <div style="overflow-x:auto;">
+                <table id="tabEntSal" class="table table-bordered mb-0" style="white-space:nowrap;font-size:.72rem;"></table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div><!-- /ind-entsal -->
 
     </div><!-- /panel-indicadores -->
 
@@ -2608,13 +2676,14 @@ function submitRecord() {
 function switchIndTab(name) {
   document.querySelectorAll('.ind-tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.ind-tab-pane').forEach(p => p.classList.remove('active'));
-  document.getElementById(name).classList.add('active');
-  // Find matching button by onclick attribute
+  const pane = document.getElementById(name);
+  if (pane) pane.classList.add('active');
   document.querySelectorAll('.ind-tab-btn').forEach(b => {
     if (b.getAttribute('onclick') && b.getAttribute('onclick').includes("'" + name + "'")) {
       b.classList.add('active');
     }
   });
+  if (name === 'ind-entsal') renderIndEntSal();
 }
 
 // All measurable parameters (with and without regulatory limits)
@@ -2659,6 +2728,11 @@ const REG_LIMITS = {
 // Cache for detected continuous params (computed once on data load)
 App.continuousParams = null;
 App.paramFirstCampaign = null;
+App.pointDetection = null;      // { continuous, active2024, allPoints }
+App.entSalPairs = null;         // detected entrada/salida pairs
+App.selectedPairKey = null;
+App.ind2PointFilter = 'all';    // 'all' | 'cont' | '2024'
+App.ind2AllowedPoints = null;   // null = all, or Set of Punto_IDs
 
 /** Returns true if a raw parameter value counts as "measured" (not empty/null) */
 function isMeasured(v) {
@@ -2740,17 +2814,29 @@ function calcCompliance(records, paramSet) {
   return { dl, fl, total, pct };
 }
 
-/** Render all 3 indicators panels from App.filteredData */
+/** Render all indicators panels from App.filteredData */
 function renderIndicadores() {
   if (!App.continuousParams) {
-    const detected = detectContinuousParams(App.data); // use ALL data for detection
+    const detected = detectContinuousParams(App.data);
     App.continuousParams = detected.continuous;
     App.paramFirstCampaign = detected;
+  }
+  if (!App.pointDetection) {
+    App.pointDetection = detectContinuousPoints(App.data);
+    const pd = App.pointDetection;
+    const contN  = document.getElementById('ptfContN');
+    const p2024N = document.getElementById('ptf2024N');
+    if (contN)  contN.textContent  = pd.continuous.length;
+    if (p2024N) p2024N.textContent = pd.active2024.length;
+  }
+  if (!App.entSalPairs) {
+    App.entSalPairs = detectEntSalPairs(App.data);
   }
 
   renderInd1();
   renderInd2();
   renderInd3();
+  renderIndEntSal();
 }
 
 /** Enfoque 1: Por Campaña — uses existing DL/FL from data */
@@ -2832,7 +2918,10 @@ function renderInd1() {
 
 /** Enfoque 2: En el Tiempo — recalculates using continuous params only */
 function renderInd2() {
-  const fd = App.filteredData;
+  const allowedPts = App.ind2AllowedPoints;
+  const fd = allowedPts
+    ? App.filteredData.filter(r => allowedPts.has(r.Punto_ID))
+    : App.filteredData;
   const contParams = App.continuousParams;
 
   // Update info
@@ -3024,6 +3113,309 @@ function renderInd3() {
       <td class="text-center">${contBadge}</td>
     </tr>`;
   }).join('');
+}
+
+/* ════════════════════════════════════════════════════════════════
+   PUNTO DETECTION — for point filters in Enfoque 2
+═══════════════════════════════════════════════════════════════════ */
+
+/**
+ * Detects which monitoring points were active in all years ≥ 2021
+ * and which were active in any year ≥ 2024.
+ */
+function detectContinuousPoints(data) {
+  const yearSet = new Set();
+  data.forEach(r => { const yr = getAnio(r); if (yr) yearSet.add(yr); });
+  const years = [...yearSet].sort((a, b) => a - b);
+  const targetYears = years.filter(y => y >= 2021);
+
+  const pointYears = {};
+  data.forEach(r => {
+    const p = r.Punto_ID; const yr = getAnio(r);
+    if (!p || !yr) return;
+    if (!pointYears[p]) pointYears[p] = new Set();
+    pointYears[p].add(yr);
+  });
+
+  const allPoints = Object.keys(pointYears);
+  const continuous = allPoints.filter(p => targetYears.every(y => pointYears[p].has(y)));
+  const active2024  = allPoints.filter(p => [...pointYears[p]].some(y => y >= 2024));
+
+  return { continuous, active2024, allPoints, years };
+}
+
+/** Change the point filter for Enfoque 2 and re-render */
+function setInd2PointFilter(filter) {
+  App.ind2PointFilter = filter;
+  const pd = App.pointDetection;
+
+  ['all', 'cont', '2024'].forEach(f => {
+    const btn = document.getElementById('ptf-' + f);
+    if (!btn) return;
+    btn.classList.toggle('btn-primary',         f === filter);
+    btn.classList.toggle('btn-outline-primary', f !== filter);
+  });
+
+  const note = document.getElementById('ptfActiveNote');
+  if (filter === 'all') {
+    App.ind2AllowedPoints = null;
+    if (note) note.style.display = 'none';
+  } else if (filter === 'cont' && pd) {
+    App.ind2AllowedPoints = new Set(pd.continuous);
+    if (note) { note.style.display = ''; note.textContent = `${pd.continuous.length} puntos presentes en todos los años 2021–2025`; }
+  } else if (filter === '2024' && pd) {
+    App.ind2AllowedPoints = new Set(pd.active2024);
+    if (note) { note.style.display = ''; note.textContent = `${pd.active2024.length} puntos con al menos una campaña en 2024 o 2025`; }
+  } else {
+    App.ind2AllowedPoints = null;
+    if (note) note.style.display = 'none';
+  }
+
+  renderInd2();
+}
+
+/* ════════════════════════════════════════════════════════════════
+   ENTRADA / SALIDA — pair detection & analysis
+═══════════════════════════════════════════════════════════════════ */
+
+/**
+ * Detects entrada/salida pairs.
+ * Primary: Estado_Punto = "Entrada" / "Salida", grouped by Subcuenca.
+ * Fallback: naming convention — IDs starting with 1XX = entrada, 3XX = salida;
+ *           paired by stripping the first digit (e.g. 191-ST ↔ 391-ST → key "91-ST").
+ */
+function detectEntSalPairs(data) {
+  const pairs = {};
+
+  data.forEach(r => {
+    const pid = r.Punto_ID; if (!pid) return;
+    const estado = (r.Estado_Punto || '').trim().toLowerCase();
+    let role = null, pairKey = null;
+
+    if (estado === 'entrada') {
+      role = 'entrada';
+      pairKey = (r.Subcuenca || '').trim() || pid.replace(/^\d/, '');
+    } else if (estado === 'salida') {
+      role = 'salida';
+      pairKey = (r.Subcuenca || '').trim() || pid.replace(/^\d/, '');
+    } else {
+      // Naming convention: 1XX-YY = entrada, 3XX-YY = salida
+      const m = pid.match(/^([13])(\d+.+)$/);
+      if (m) {
+        role = m[1] === '1' ? 'entrada' : 'salida';
+        pairKey = m[2];
+      }
+    }
+    if (!role || !pairKey) return;
+    if (!pairs[pairKey]) pairs[pairKey] = { entrada: [], salida: [], subcuenca: r.Subcuenca || '' };
+    pairs[pairKey][role].push(r);
+  });
+
+  return Object.entries(pairs)
+    .filter(([, v]) => v.entrada.length > 0 && v.salida.length > 0)
+    .map(([k, v]) => ({
+      key: k,
+      subcuenca: v.subcuenca,
+      entId: [...new Set(v.entrada.map(r => r.Punto_ID))].sort().join(' / '),
+      salId: [...new Set(v.salida.map(r => r.Punto_ID))].sort().join(' / '),
+      entrada: v.entrada,
+      salida:  v.salida,
+    }))
+    .sort((a, b) => a.key.localeCompare(b.key));
+}
+
+/** Render the Entrada/Salida tab */
+function renderIndEntSal() {
+  const pairs = App.entSalPairs;
+  const selectorArea = document.getElementById('entSalSelectorArea');
+  if (!selectorArea) return;
+
+  if (!pairs || !pairs.length) {
+    selectorArea.innerHTML = `<div class="alert alert-warning mb-0" style="font-size:.83rem;">
+      No se detectaron pares Entrada/Salida en los datos actuales.<br>
+      <small>Se esperan IDs del tipo <strong>1XX-YY</strong> (entrada) y <strong>3XX-YY</strong> (salida) para el mismo cauce,
+      o campo <strong>Estado_Punto</strong> con valores "Entrada"/"Salida".</small></div>`;
+    return;
+  }
+
+  selectorArea.innerHTML = pairs.map(p => `
+    <button class="btn btn-outline-primary btn-sm me-2 mb-2 entsal-pair-btn"
+      id="esbtn-${p.key.replace(/[^a-z0-9]/gi,'_')}"
+      onclick="selectEntSalPair('${p.key.replace(/'/g,"\\'")}')">
+      <i class="bi bi-arrow-down-up me-1"></i>
+      <strong>${esc(p.entId)}</strong>
+      <span class="text-muted mx-1">→</span>
+      <strong>${esc(p.salId)}</strong>
+      ${p.subcuenca ? `<span class="badge bg-light text-dark ms-1">${esc(p.subcuenca)}</span>` : ''}
+    </button>`
+  ).join('');
+
+  // Auto-select first pair if none selected
+  if (!App.selectedPairKey && pairs.length) {
+    selectEntSalPair(pairs[0].key);
+  } else if (App.selectedPairKey) {
+    const found = pairs.find(p => p.key === App.selectedPairKey);
+    if (found) renderEntSalDetail(found);
+  }
+}
+
+/** Select a specific pair and render its detail */
+function selectEntSalPair(key) {
+  App.selectedPairKey = key;
+  document.querySelectorAll('.entsal-pair-btn').forEach(b => b.classList.remove('active', 'btn-primary'));
+  document.querySelectorAll('.entsal-pair-btn').forEach(b => {
+    if (b.getAttribute('onclick') && b.getAttribute('onclick').includes(key.replace(/'/g,"\\'"))) {
+      b.classList.add('active', 'btn-primary');
+      b.classList.remove('btn-outline-primary');
+    }
+  });
+  const pair = (App.entSalPairs || []).find(p => p.key === key);
+  if (pair) renderEntSalDetail(pair);
+}
+
+/** Render charts and table for a selected entrada/salida pair */
+function renderEntSalDetail(pair) {
+  if (!pair) return;
+  const content = document.getElementById('entSalContent');
+  if (content) content.classList.remove('d-none');
+
+  const hdr = document.getElementById('entSalDetailHdr');
+  if (hdr) hdr.innerHTML = `<i class="bi bi-graph-up-arrow"></i> ${esc(pair.entId)} (entrada) vs ${esc(pair.salId)} (salida)`;
+
+  // Build sorted campaign list from both sets
+  const allRecs = [...pair.entrada, ...pair.salida];
+  const campSet = new Set();
+  allRecs.forEach(r => {
+    const yr = getAnio(r); const s = r.Cod_Temporada;
+    if (yr && s) campSet.add(yr + '|' + s);
+  });
+  const campaigns = [...campSet].sort((a, b) => {
+    const [ya, sa] = a.split('|'); const [yb, sb] = b.split('|');
+    return ya !== yb ? ya - yb : (sa === 'RS' ? -1 : 1);
+  });
+  const campLabels = campaigns.map(c => { const [y, s] = c.split('|'); return `${y} ${s}`; });
+
+  const contParams = App.continuousParams || ALL_MEASURED_PARAMS;
+
+  const entPct = campaigns.map(ck => {
+    const [yr, s] = ck.split('|');
+    const recs = pair.entrada.filter(r => String(getAnio(r)) === yr && r.Cod_Temporada === s);
+    return recs.length ? (calcCompliance(recs, contParams).pct) : null;
+  });
+  const salPct = campaigns.map(ck => {
+    const [yr, s] = ck.split('|');
+    const recs = pair.salida.filter(r => String(getAnio(r)) === yr && r.Cod_Temporada === s);
+    return recs.length ? (calcCompliance(recs, contParams).pct) : null;
+  });
+
+  // Line chart: compliance over time
+  destroyChart('chartEntSal');
+  App.charts['chartEntSal'] = new Chart(document.getElementById('chartEntSal'), {
+    type: 'line',
+    data: {
+      labels: campLabels,
+      datasets: [
+        { label: `Entrada (${pair.entId})`, data: entPct,
+          borderColor: '#2E75B6', backgroundColor: '#2E75B622',
+          pointRadius: 6, pointBackgroundColor: '#2E75B6',
+          tension: .3, fill: false, spanGaps: true },
+        { label: `Salida (${pair.salId})`,  data: salPct,
+          borderColor: '#C00000', backgroundColor: '#C0000022',
+          pointRadius: 6, pointBackgroundColor: '#C00000',
+          tension: .3, fill: false, spanGaps: true },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', labels: { font: { size: 11 } } },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.raw != null ? ctx.raw.toFixed(1) + '%' : 'S/D'}` } }
+      },
+      scales: {
+        y: { min: 0, max: 100, ticks: { callback: v => v + '%', font: { size: 10 } }, grid: { color: '#eee' } },
+        x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+      }
+    }
+  });
+
+  // Bar chart: parameter comparison for the LATEST campaign that has both
+  const lastBothCamp = [...campaigns].reverse().find(ck => {
+    const [yr, s] = ck.split('|');
+    return pair.entrada.some(r => String(getAnio(r)) === yr && r.Cod_Temporada === s) &&
+           pair.salida.some(r => String(getAnio(r)) === yr && r.Cod_Temporada === s);
+  });
+
+  destroyChart('chartEntSalParam');
+  if (lastBothCamp) {
+    const [lyr, ls] = lastBothCamp.split('|');
+    const entRec = pair.entrada.find(r => String(getAnio(r)) === lyr && r.Cod_Temporada === ls);
+    const salRec = pair.salida.find(r  => String(getAnio(r)) === lyr && r.Cod_Temporada === ls);
+    const limitParams = contParams.filter(p => REG_LIMITS[p] && !REG_LIMITS[p].qualitative);
+    const entVals = limitParams.map(p => parseNumeric(entRec ? entRec[p] : ''));
+    const salVals = limitParams.map(p => parseNumeric(salRec ? salRec[p] : ''));
+    const labels  = limitParams.map(p => REG_LIMITS[p].label);
+
+    App.charts['chartEntSalParam'] = new Chart(document.getElementById('chartEntSalParam'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { label: `Entrada — ${lyr} ${ls}`, data: entVals,
+            backgroundColor: '#2E75B6aa', borderRadius: 4, indexAxis: 'y' },
+          { label: `Salida  — ${lyr} ${ls}`, data: salVals,
+            backgroundColor: '#C00000aa', borderRadius: 4, indexAxis: 'y' },
+        ]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'top', labels: { font: { size: 10 } } },
+          tooltip: { callbacks: { label: ctx => ` ${ctx.raw != null && !isNaN(ctx.raw) ? ctx.raw : 'ND'}` } } },
+        scales: {
+          x: { ticks: { font: { size: 9 } }, grid: { color: '#eee' } },
+          y: { ticks: { font: { size: 9 } }, grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  // Detailed table: params with limits, each campaign, entry vs salida
+  const keyParams = contParams.filter(p => REG_LIMITS[p]);
+  let html = '<thead><tr>';
+  html += '<th style="position:sticky;left:0;background:#1F4E79;color:#fff;min-width:130px;">Parámetro</th>';
+  campaigns.forEach(ck => {
+    const [yr, s] = ck.split('|');
+    html += `<th colspan="2" style="text-align:center;background:#1F4E79;color:#fff;">${yr} ${s}</th>`;
+  });
+  html += '</tr><tr><th style="position:sticky;left:0;background:#2d5f87;color:#fff;font-size:.68rem;"></th>';
+  campaigns.forEach(() => {
+    html += '<th style="text-align:center;background:#2E75B6;color:#fff;font-size:.68rem;">ENT</th>';
+    html += '<th style="text-align:center;background:#C00000;color:#fff;font-size:.68rem;">SAL</th>';
+  });
+  html += '</tr></thead><tbody>';
+
+  keyParams.forEach(p => {
+    const lim = REG_LIMITS[p];
+    html += `<tr><td style="position:sticky;left:0;background:#f8f9fa;font-weight:600;white-space:nowrap;">${esc(lim.label)}</td>`;
+    campaigns.forEach(ck => {
+      const [yr, s] = ck.split('|');
+      const eRec = pair.entrada.find(r => String(getAnio(r)) === yr && r.Cod_Temporada === s);
+      const sRec = pair.salida.find(r  => String(getAnio(r)) === yr && r.Cod_Temporada === s);
+
+      function cellHtml(rec) {
+        if (!rec || !isMeasured(rec[p])) return '<td style="text-align:center;color:#aaa;">—</td>';
+        const ok = isWithinLimit(rec[p], lim);
+        const bg = ok == null ? '' : ok ? '#c6efce' : '#ffc7ce';
+        const col = ok == null ? '' : ok ? '#375623' : '#9c0006';
+        const val = String(rec[p]).slice(0, 9);
+        return `<td style="text-align:center;background:${bg};color:${col};font-weight:600;">${esc(val)}</td>`;
+      }
+      html += cellHtml(eRec) + cellHtml(sRec);
+    });
+    html += '</tr>';
+  });
+  html += '</tbody>';
+  document.getElementById('tabEntSal').innerHTML = html;
 }
 
 /* ════════════════════════════════════════════════════════════════
