@@ -1,0 +1,6 @@
+data.json
+extraer_data_json.py
+*.py
+*.md
+*.bak
+.git/
