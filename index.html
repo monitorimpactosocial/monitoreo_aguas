@@ -102,6 +102,23 @@ body {
   align-items: center;
 }
 .hamburger-btn:hover { background: rgba(255,255,255,.15); }
+.btn-datos {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  background: rgba(255,255,255,.12);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.28);
+  border-radius: 6px;
+  font-size: .78rem;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background .15s;
+}
+.btn-datos:hover { background: rgba(255,255,255,.22); color: #fff; }
+.btn-datos i { font-size: .9rem; }
 .navbar-right-info {
   color: rgba(255,255,255,.5);
   font-size: .72rem;
@@ -454,7 +471,11 @@ input.ok-limit   { border-color: #28a745 !important; background: #f6fff8; }
       <i class="bi bi-pencil-square"></i><span>Registro</span>
     </button>
   </div>
-  <div class="navbar-right-info">Prog. PR-SA-F04 &nbsp;|&nbsp; Res. MADES 222/02</div>
+  <a href="https://docs.google.com/spreadsheets/d/1VmBLNbeUCW1GtxrXz3zsUQl0HdRqc5SSUBdtMywql4U"
+     target="_blank" rel="noopener" class="btn-datos" title="Abrir base de datos en Google Sheets">
+    <i class="bi bi-table"></i><span>Datos</span>
+  </a>
+  <div class="navbar-right-info">PR-SA-F04 &nbsp;|&nbsp; MADES 222/02</div>
 </nav>
 
 <!-- ─── TOAST ──────────────────────────────────────────────────── -->
@@ -1971,49 +1992,219 @@ function changePage(delta) {
 /* ════════════════════════════════════════════════════════════════
    MAP
 ═══════════════════════════════════════════════════════════════════ */
+// GeoJSON sources for Paraguay administrative layers
+const GEO_LAYERS = {
+  Departamentos: {
+    url: 'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/main/releaseData/gbOpen/PRY/ADM1/geoBoundaries-PRY-ADM1.geojson',
+    style: { color:'#1F4E79', weight:2.5, fillOpacity:.06, fillColor:'#1F4E79' },
+    nameFields: ['shapeName','NAME_1','name','ADM1_ES'],
+  },
+  Distritos: {
+    url: 'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/main/releaseData/gbOpen/PRY/ADM2/geoBoundaries-PRY-ADM2.geojson',
+    style: { color:'#2E75B6', weight:1, fillOpacity:.03, fillColor:'#2E75B6', dashArray:'4,3' },
+    nameFields: ['shapeName','NAME_2','name','ADM2_ES'],
+  },
+};
+
+async function fetchGeoLayer(def) {
+  const group = L.layerGroup();
+  try {
+    const resp = await fetch(def.url);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const gj = await resp.json();
+    L.geoJSON(gj, {
+      style: def.style,
+      onEachFeature: (f, layer) => {
+        const name = def.nameFields.map(k => f.properties[k]).find(Boolean) || '';
+        if (name) layer.bindTooltip(name, { sticky: true, direction: 'top', opacity: 0.9 });
+      }
+    }).addTo(group);
+  } catch(e) {
+    console.warn('Capa GeoJSON no disponible:', def.url, e.message);
+    showToast('Capa no disponible: ' + e.message, false);
+  }
+  return group;
+}
+
+function computePointMetrics(puntoId) {
+  const recs = App.data.filter(r => r.Punto_ID === puntoId);
+  if (!recs.length) return null;
+  recs.sort((a, b) => {
+    const ya = Number(getAnio(a)), yb = Number(getAnio(b));
+    if (ya !== yb) return yb - ya;
+    return (b.Cod_Temporada === 'DS' ? 1 : 0) - (a.Cod_Temporada === 'DS' ? 1 : 0);
+  });
+  const last = recs[0], prev = recs[1];
+  const lastPct = parseFloat(last.Pct_Cumplimiento) || null;
+  const prevPct = prev ? (parseFloat(prev.Pct_Cumplimiento) || null) : null;
+  const trend = (lastPct != null && prevPct != null) ? lastPct - prevPct : null;
+
+  const POPUP_PARAMS = [
+    { key:'pH',               label:'pH',                limits:{min:6,max:9}   },
+    { key:'OD',               label:'OD (mg/L)',         limits:{min:5}         },
+    { key:'Turbidez',         label:'Turbidez (NTU)',    limits:{max:100}       },
+    { key:'DBO5',             label:'DBO5 (mg/L)',       limits:{max:5}         },
+    { key:'Fosforo_Total',    label:'Fósforo (mg/L)',    limits:{max:0.05}      },
+    { key:'Nitrogeno_Total',  label:'Nitrógeno (mg/L)',  limits:{max:0.6}       },
+    { key:'Aluminio',         label:'Aluminio (mg/L)',   limits:{max:0.2}       },
+    { key:'Coliformes_Fecales',label:'Col. Fecales',     limits:{max:1000}      },
+    { key:'Glifosato',        label:'Glifosato (mg/L)',  limits:{max:0.007}     },
+    { key:'Hierro_Soluble',   label:'Hierro (mg/L)',     limits:{max:0.3}       },
+  ];
+
+  const paramValues = POPUP_PARAMS.map(p => {
+    const raw = last[p.key];
+    const v = parseNumeric(raw);
+    let ok = null;
+    if (!isNaN(v)) {
+      const { min, max } = p.limits;
+      ok = (min == null || v >= min) && (max == null || v <= max);
+    }
+    return { ...p, raw, v, ok };
+  });
+
+  const violations = {};
+  recs.forEach(r => POPUP_PARAMS.forEach(p => {
+    const v = parseNumeric(r[p.key]);
+    if (isNaN(v)) return;
+    const { min, max } = p.limits;
+    if ((min != null && v < min) || (max != null && v > max))
+      violations[p.key] = (violations[p.key] || 0) + 1;
+  }));
+  const topV = Object.entries(violations).sort((a,b) => b[1]-a[1])[0];
+  const topLabel = topV
+    ? (POPUP_PARAMS.find(p => p.key === topV[0])?.label || topV[0]) + ` — ${topV[1]}/${recs.length}`
+    : 'Ninguno registrado';
+
+  return {
+    count: recs.length,
+    lastPct, prevPct, trend,
+    lastYear: getAnio(last),
+    lastSeason: last.Cod_Temporada || '—',
+    estado: last.Estado_Punto || '—',
+    paramValues,
+    topViolation: topLabel,
+    dlTotal: recs.reduce((s,r) => s + (Number(r.DL)||0), 0),
+    flTotal: recs.reduce((s,r) => s + (Number(r.FL)||0), 0),
+  };
+}
+
+function buildPopupHtml(id, sub, m) {
+  if (!m) return `<div style="min-width:180px;font-family:'Segoe UI',sans-serif;">
+    <b style="color:#1F4E79;">${esc(id)}</b><br>
+    <span style="color:#666;">Subcuenca: ${esc(sub)}</span><br>
+    <span style="color:#999;font-size:.8rem;">Sin datos de medición</span>
+  </div>`;
+
+  const pctStr = m.lastPct != null ? m.lastPct.toFixed(1) + '%' : '—';
+  const pctCol = m.lastPct != null ? pctColor(m.lastPct) : '#999';
+  const bar = m.lastPct != null ? Math.min(100, Math.max(0, m.lastPct)) : 0;
+  const trendHtml = m.trend != null
+    ? `<span style="color:${m.trend >= 0 ? '#28a745' : '#dc3545'};font-size:.72rem;margin-left:6px;">
+        ${m.trend >= 0 ? '▲' : '▼'} ${Math.abs(m.trend).toFixed(1)}% vs anterior
+       </span>` : '';
+
+  const paramsHtml = m.paramValues
+    .filter(p => p.raw !== '' && p.raw != null)
+    .map(p => {
+      const display = !isNaN(p.v)
+        ? (p.v < 0.001 ? p.v.toExponential(1) : p.v < 10 ? p.v.toFixed(p.v < 1 ? 3 : 2) : Math.round(p.v))
+        : esc(String(p.raw));
+      const ind = p.ok === true  ? `<span style="color:#28a745;font-weight:700;">✓</span>`
+                : p.ok === false ? `<span style="color:#dc3545;font-weight:700;">✗</span>`
+                : '';
+      return `<tr>
+        <td style="color:#555;font-size:.73rem;padding:1px 8px 1px 0;">${esc(p.label)}</td>
+        <td style="font-weight:600;font-size:.73rem;">${display}</td>
+        <td style="padding-left:4px;">${ind}</td>
+      </tr>`;
+    }).join('');
+
+  return `<div style="min-width:240px;max-width:280px;font-family:'Segoe UI',sans-serif;">
+    <div style="font-size:.95rem;font-weight:700;color:#1F4E79;">${esc(id)}</div>
+    <div style="font-size:.75rem;color:#666;margin-bottom:6px;">
+      Subcuenca: <b>${esc(sub)}</b> · ${esc(m.estado)} · ${m.count} medición${m.count!==1?'es':''}
+    </div>
+    <div style="display:flex;align-items:center;margin-bottom:3px;">
+      <span style="font-size:.78rem;color:#555;margin-right:6px;">% Cumplimiento</span>
+      <span style="font-weight:700;color:${pctCol};font-size:.9rem;">${pctStr}</span>
+      ${trendHtml}
+    </div>
+    <div style="background:#e9ecef;border-radius:4px;height:7px;margin-bottom:5px;overflow:hidden;">
+      <div style="width:${bar}%;height:100%;background:${pctCol};border-radius:4px;"></div>
+    </div>
+    <div style="font-size:.72rem;color:#888;margin-bottom:7px;">
+      Último: <b>${esc(String(m.lastYear))} ${esc(m.lastSeason)}</b>
+      &nbsp;·&nbsp; DL: <b>${m.dlTotal}</b> / FL: <b>${m.flTotal}</b>
+    </div>
+    <table style="width:100%;border-collapse:collapse;">${paramsHtml}</table>
+    <div style="font-size:.7rem;color:#777;margin-top:7px;padding-top:6px;border-top:1px solid #eee;">
+      Parámetro más incumplido:<br><b style="color:#dc3545;">${esc(m.topViolation)}</b>
+    </div>
+  </div>`;
+}
+
 function initMap() {
   const map = L.map('map', { center: [-22.65, -56.95], zoom: 9 });
   App.mapInstance = map;
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  // ── Base layers ────────────────────────────────────────────────
+  const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    maxZoom: 18
-  }).addTo(map);
+    maxZoom: 19
+  });
+  const satelliteLayer = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    { attribution: 'Tiles © Esri — Source: Esri, Airbus, USGS', maxZoom: 19 }
+  );
+  const cartoLayer = L.tileLayer(
+    'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+    { attribution: '© <a href="https://carto.com">CARTO</a>', maxZoom: 19 }
+  );
+  osmLayer.addTo(map);
 
-  // Enrich hardcoded points with last compliance data from App.data
-  const pointsWithData = HARDCODED_POINTS.map(pt => {
-    const recs = App.data.filter(r => r.Punto_ID === pt.id)
-      .sort((a,b) => {
-        const ya = Number(getAnio(a)); const yb = Number(getAnio(b));
-        if (ya !== yb) return yb - ya;
-        // DS after RS in same year
-        return (a.Cod_Temporada === 'DS' ? 1 : 0) - (b.Cod_Temporada === 'DS' ? 1 : 0);
-      });
-    const last = recs.find(r => parseFloat(r.Pct_Cumplimiento) > 0 || r.DL !== '' || r.DL > 0);
-    return {
-      ...pt,
-      lastPct:  last ? parseFloat(last.Pct_Cumplimiento) : null,
-      lastYear: last ? getAnio(last) : null,
-    };
+  // ── Overlay layer groups (lazy-loaded GeoJSON) ─────────────────
+  const overlayGroups = {};
+  const loadedFlags = {};
+  Object.keys(GEO_LAYERS).forEach(name => {
+    overlayGroups[name] = L.layerGroup();
   });
 
-  App.points = pointsWithData;
-  placeMapMarkers(pointsWithData);
+  map.on('overlayadd', async e => {
+    const def = GEO_LAYERS[e.name];
+    if (def && !loadedFlags[e.name]) {
+      loadedFlags[e.name] = true;
+      const layerContent = await fetchGeoLayer(def);
+      layerContent.eachLayer(l => overlayGroups[e.name].addLayer(l));
+    }
+  });
 
-  // If in AS context, try to get server points
-  if (IS_AS) {
-    google.script.run
-      .withSuccessHandler(r => {
-        const pts = (r && (r.data || r)) || [];
-        if (pts.length > 0) {
-          App.mapMarkers.forEach(m => App.mapInstance.removeLayer(m));
-          App.mapMarkers = [];
-          placeMapMarkers(pts);
-        }
-      })
-      .withFailureHandler(() => { /* silently keep hardcoded points */ })
-      .getPuntosConCumplimiento();
-  }
+  // ── Layer control ──────────────────────────────────────────────
+  L.control.layers(
+    { 'Calles (OSM)': osmLayer, 'Satélite': satelliteLayer, 'Mapa limpio': cartoLayer },
+    overlayGroups,
+    { position: 'topright', collapsed: true }
+  ).addTo(map);
+
+  // ── Compliance legend ──────────────────────────────────────────
+  const legend = L.control({ position: 'bottomright' });
+  legend.onAdd = () => {
+    const div = L.DomUtil.create('div', 'map-legend');
+    div.innerHTML = `
+      <b style="font-size:.8rem;color:#1F4E79;">% Cumplimiento</b>
+      <div class="map-legend-item" style="margin-top:5px;"><span class="map-legend-dot" style="background:#28a745;"></span>≥85% Alto</div>
+      <div class="map-legend-item"><span class="map-legend-dot" style="background:#fd7e14;"></span>70–84% Medio</div>
+      <div class="map-legend-item"><span class="map-legend-dot" style="background:#dc3545;"></span>&lt;70% Bajo</div>
+      <div class="map-legend-item"><span class="map-legend-dot" style="background:#6c757d;"></span>Sin datos</div>
+    `;
+    return div;
+  };
+  legend.addTo(map);
+
+  // ── Place markers with rich metrics ────────────────────────────
+  const enriched = HARDCODED_POINTS.map(pt => ({ ...pt, metrics: computePointMetrics(pt.id) }));
+  App.points = enriched;
+  placeMapMarkers(enriched);
 }
 
 function markerColor(pct) {
@@ -2032,24 +2223,22 @@ function makeMarkerIcon(color) {
 }
 
 function placeMapMarkers(points) {
+  App.mapMarkers.forEach(m => App.mapInstance && App.mapInstance.removeLayer(m));
+  App.mapMarkers = [];
+
   points.forEach(pt => {
     const lat  = parseFloat(pt.lat || pt.Lat);
     const lng  = parseFloat(pt.lng || pt.Lng);
     const id   = pt.id || pt.Punto_ID;
     const sub  = pt.sub || pt.Subcuenca || '—';
-    const pct  = parseFloat(pt.lastPct);
-    const yr   = pt.lastYear || '—';
-    const color = markerColor(isNaN(pct) ? null : pct);
-
     if (isNaN(lat) || isNaN(lng)) return;
 
+    const metrics = pt.metrics || computePointMetrics(id);
+    const lastPct = metrics ? metrics.lastPct : (parseFloat(pt.lastPct) || null);
+    const color = markerColor(lastPct);
+
     const marker = L.marker([lat, lng], { icon: makeMarkerIcon(color) });
-    marker.bindPopup(`
-      <strong style="color:#1F4E79;">${esc(id)}</strong><br>
-      <span style="color:#555;">Subcuenca: <b>${esc(sub)}</b></span><br>
-      <span>Último año: <b>${esc(yr)}</b></span><br>
-      <span>% Cumplimiento: <b style="color:${color};">${(!isNaN(pct) ? pct.toFixed(1) + '%' : 'Sin datos')}</b></span>
-    `);
+    marker.bindPopup(buildPopupHtml(id, sub, metrics), { maxWidth: 300 });
     marker.options._subcuenca = sub;
     marker.addTo(App.mapInstance);
     App.mapMarkers.push(marker);
