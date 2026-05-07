@@ -74,6 +74,11 @@ function doPost(e) {
         .createTextOutput(JSON.stringify(importHistoricalBulk(payload.records)))
         .setMimeType(ContentService.MimeType.JSON);
     }
+    if (payload.action === 'saveRecord') {
+      return ContentService
+        .createTextOutput(JSON.stringify(saveRecord(payload.data)))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     return ContentService
       .createTextOutput(JSON.stringify({ success: false, error: 'Unknown action' }))
       .setMimeType(ContentService.MimeType.JSON);

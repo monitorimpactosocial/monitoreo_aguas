@@ -2268,41 +2268,32 @@ function filterMapMarkers() {
    REGISTRATION PANEL
 ═══════════════════════════════════════════════════════════════════ */
 function initRegistroPanel() {
-  if (!IS_AS) {
-    document.getElementById('registro-notice').classList.remove('d-none');
-    return;
-  }
+  document.getElementById('registro-notice').classList.add('d-none');
   document.getElementById('registro-form').classList.remove('d-none');
-  // Set default date
   document.getElementById('fFecha').value = new Date().toISOString().split('T')[0];
   loadPuntosForm();
 }
 
 function loadPuntosForm() {
-  google.script.run
-    .withSuccessHandler(r => {
-      const puntos = (r && (r.data || r)) || [];
-      const sel = document.getElementById('fPunto');
-      puntos.forEach(p => {
-        const o = document.createElement('option');
-        o.value = p.id || p.Punto_ID;
-        o.textContent = (p.id || p.Punto_ID) + ' — ' + (p.sub || p.Subcuenca || '');
-        o.dataset.sub = p.sub || p.Subcuenca || '';
-        sel.appendChild(o);
-      });
-    })
-    .withFailureHandler(() => {
-      // Fallback: populate from hardcoded points
-      const sel = document.getElementById('fPunto');
-      HARDCODED_POINTS.forEach(pt => {
-        const o = document.createElement('option');
-        o.value = pt.id;
-        o.textContent = pt.id + ' — ' + pt.sub;
-        o.dataset.sub = pt.sub;
-        sel.appendChild(o);
-      });
-    })
-    .getPuntos();
+  function fillSelect(puntos) {
+    const sel = document.getElementById('fPunto');
+    while (sel.options.length > 1) sel.remove(1);
+    puntos.forEach(p => {
+      const o = document.createElement('option');
+      o.value = p.id || p.Punto_ID;
+      o.textContent = (p.id || p.Punto_ID) + ' — ' + (p.sub || p.Subcuenca || '');
+      o.dataset.sub = p.sub || p.Subcuenca || '';
+      sel.appendChild(o);
+    });
+  }
+  if (IS_AS) {
+    google.script.run
+      .withSuccessHandler(r => fillSelect((r && (r.data || r)) || []))
+      .withFailureHandler(() => fillSelect(HARDCODED_POINTS))
+      .getPuntos();
+  } else {
+    fillSelect(HARDCODED_POINTS);
+  }
 }
 
 function onPuntoChange() {
@@ -2397,21 +2388,38 @@ function submitRecord() {
     Observaciones:    document.getElementById('fObs').value,
   };
 
-  showLoader('Guardando en Google Sheets…');
-  google.script.run
-    .withSuccessHandler(r => {
+  if (IS_AS) {
+    showLoader('Guardando en Google Sheets…');
+    google.script.run
+      .withSuccessHandler(r => {
+        hideLoader();
+        if (r && r.success) {
+          showToast(r.message || 'Registro guardado correctamente.', true);
+          clearForm();
+          loadData();
+        } else {
+          showToast('Error: ' + (r && r.error ? r.error : 'respuesta desconocida'), false);
+        }
+      })
+      .withFailureHandler(err => { hideLoader(); showToast('Error de conexión: ' + err, false); })
+      .saveRecord(record);
+  } else {
+    // GitHub Pages: POST via no-cors (opaque response, can't read result)
+    const AS_URL = 'https://script.google.com/macros/s/AKfycbzoW7B-phIQv-QpcLXpVb91ivhYLjqQU5D0NI6PD--shXCsGpmBR0HIpybs5eTAL8wT-w/exec';
+    showLoader('Enviando a Google Sheets…');
+    fetch(AS_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      body: JSON.stringify({ action: 'saveRecord', data: record }),
+    }).then(() => {
       hideLoader();
-      if (r && r.success) {
-        showToast(r.message || 'Registro guardado correctamente.', true);
-        clearForm();
-        // Reload data to reflect new record
-        loadData();
-      } else {
-        showToast('Error: ' + (r && r.error ? r.error : 'respuesta desconocida'), false);
-      }
-    })
-    .withFailureHandler(err => { hideLoader(); showToast('Error de conexión: ' + err, false); })
-    .saveRecord(record);
+      showToast('Registro enviado ✓ (visible en Google Sheets en segundos)', true);
+      clearForm();
+    }).catch(err => {
+      hideLoader();
+      showToast('Error al enviar: ' + err.message, false);
+    });
+  }
 }
 
 /* ════════════════════════════════════════════════════════════════
