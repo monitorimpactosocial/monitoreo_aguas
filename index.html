@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Monitoreo de Aguas — PARACEL S.A.</title>
+
+<!-- Bootstrap 5 -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+<!-- Bootstrap Icons -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
+<!-- Leaflet -->
+<link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet"/>
+
+<style>
+:root {
+  --azul-oscuro: #1F4E79;
+  --azul-medio: #2E75B6;
+  --azul-claro: #BDD7EE;
+  --azul-muy-claro: #DEEAF1;
+  --verde: #375623;
+  --verde-med: #70AD47;
+  --verde-claro: #C6EFCE;
+  --amarillo: #FFEB9C;
+  --rojo-claro: #FFC7CE;
+  --gris: #F8F9FA;
+}
+
+body { background:#f4f6fb; font-family:'Segoe UI',sans-serif; }
+
+/* NAVBAR */
+.navbar-brand img { height:32px; }
+.navbar { background: var(--azul-oscuro) !important; }
+.navbar .nav-link { color:rgba(255,255,255,.8) !important; font-size:.9rem; }
+.navbar .nav-link.active { color:#fff !important; border-bottom:2px solid var(--azul-claro); font-weight:600; }
+.navbar .nav-link:hover { color:#fff !important; }
+.nav-tabs-custom { display:flex; gap:4px; }
+
+/* CARDS */
+.card { border:none; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.08); }
+.card-header-primary { background:var(--azul-oscuro); color:#fff; border-radius:12px 12px 0 0 !important; }
+.card-header-primary h5 { margin:0; font-size:1rem; }
+.stat-card { border-left:4px solid var(--azul-medio); }
+.stat-card .stat-val { font-size:2rem; font-weight:700; color:var(--azul-oscuro); }
+.stat-card .stat-lbl { font-size:.8rem; color:#888; text-transform:uppercase; letter-spacing:.05em; }
+
+/* PANELS */
+.panel { display:none; }
+.panel.active { display:block; }
+
+/* FORM */
+.param-group-header {
+  background: var(--azul-oscuro);
+  color: #fff;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size:.85rem;
+  font-weight:600;
+  margin-bottom:12px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.param-group-header.micro { background: var(--verde); }
+.param-group-header.agro  { background: #7030A0; }
+
+.form-label { font-size:.82rem; color:#444; font-weight:500; margin-bottom:2px; }
+.form-label span.limit { font-size:.72rem; color:#888; font-weight:400; }
+.form-control, .form-select { font-size:.85rem; border-radius:7px; }
+.form-control:focus, .form-select:focus { border-color:var(--azul-medio); box-shadow:0 0 0 .2rem rgba(46,117,182,.2); }
+input.over-limit { border-color:#dc3545 !important; background:#fff8f8; }
+input.ok-limit   { border-color:#28a745 !important; background:#f6fff8; }
+
+/* BADGES */
+.badge-rs { background:#2E75B6; }
+.badge-ds { background:#ED7D31; }
+.pct-alto   { background:var(--verde-claro); color:var(--verde); }
+.pct-medio  { background:var(--amarillo); color:#856404; }
+.pct-bajo   { background:var(--rojo-claro); color:#842029; }
+
+/* CHART CONTAINERS */
+.chart-wrap { position:relative; height:280px; }
+.chart-wrap-sm { position:relative; height:200px; }
+
+/* TABLE */
+.table-sm td, .table-sm th { font-size:.8rem; }
+
+/* MAP */
+#map { height: 520px; border-radius: 0 0 12px 12px; }
+.leaflet-popup-content { font-size:.82rem; min-width:180px; }
+.map-legend { background:#fff; border-radius:8px; padding:10px 14px; box-shadow:0 2px 6px rgba(0,0,0,.15); font-size:.78rem; }
+.map-legend-item { display:flex; align-items:center; gap:6px; margin-bottom:4px; }
+.map-legend-dot { width:12px; height:12px; border-radius:50%; display:inline-block; }
+
+/* TOAST */
+.toast-container { position:fixed; top:70px; right:20px; z-index:9999; }
+
+/* LOADER */
+.spinner-overlay { position:fixed; inset:0; background:rgba(255,255,255,.7); z-index:9998; display:flex; align-items:center; justify-content:center; }
+
+/* RESPONSIVE tweaks */
+@media(max-width:768px) {
+  .stat-card .stat-val { font-size:1.4rem; }
+  #map { height:380px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ─── NAVBAR ─────────────────────────────────────────────────────── -->
+<nav class="navbar navbar-expand-lg sticky-top shadow-sm">
+  <div class="container-fluid px-3">
+    <span class="navbar-brand text-white fw-bold d-flex align-items-center gap-2">
+      <i class="bi bi-droplet-half fs-5"></i>
+      <span>MonitoreoAguas</span>
+      <span class="badge" style="background:var(--azul-medio);font-size:.65rem;">PARACEL</span>
+    </span>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navContent">
+      <span class="navbar-toggler-icon" style="filter:invert(1)"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navContent">
+      <ul class="navbar-nav ms-3 nav-tabs-custom">
+        <li class="nav-item">
+          <a class="nav-link active" href="#" onclick="showPanel('registro',this)">
+            <i class="bi bi-pencil-square me-1"></i>Registro
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#" onclick="showPanel('estadisticas',this)">
+            <i class="bi bi-bar-chart-line me-1"></i>Estadísticas
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#" onclick="showPanel('mapa',this)">
+            <i class="bi bi-map me-1"></i>Mapa
+          </a>
+        </li>
+      </ul>
+      <div class="ms-auto text-white-50 d-none d-lg-block" style="font-size:.75rem;">
+        Prog. PR-SA-F04 &nbsp;|&nbsp; Res. SEAM/MADES 222/02
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- ─── TOAST ──────────────────────────────────────────────────────── -->
+<div class="toast-container">
+  <div id="toast" class="toast align-items-center border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body fw-semibold" id="toastMsg"></div>
+      <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── LOADER ─────────────────────────────────────────────────────── -->
+<div class="spinner-overlay d-none" id="loader">
+  <div class="text-center">
+    <div class="spinner-border text-primary"></div>
+    <div class="mt-2 text-muted small" id="loaderMsg">Cargando…</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     PANEL 1: REGISTRO
+═══════════════════════════════════════════════════════════════════ -->
+<div class="container-fluid py-3 px-3 panel active" id="panel-registro">
+
+  <div class="row g-3">
+    <!-- FORM CARD -->
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header card-header-primary d-flex align-items-center gap-2 py-2">
+          <i class="bi bi-pencil-square"></i>
+          <h5>Registro de Muestra — Agua Superficial</h5>
+        </div>
+        <div class="card-body pt-3 pb-4">
+          <form id="formRegistro" novalidate>
+
+            <!-- ── IDENTIFICACIÓN ── -->
+            <div class="row g-2 mb-3">
+              <div class="col-md-3">
+                <label class="form-label">Punto de Monitoreo *</label>
+                <select class="form-select" id="fPunto" required onchange="onPuntoChange()">
+                  <option value="">— seleccionar —</option>
+                </select>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">Subcuenca</label>
+                <input type="text" class="form-control" id="fSubcuenca" readonly style="background:#f0f4f8;">
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">Año *</label>
+                <input type="number" class="form-control" id="fAnio" value="2025" min="2019" max="2030" required>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">Temporada *</label>
+                <select class="form-select" id="fTemporada" required>
+                  <option value="Lluviosa">Lluviosa (RS)</option>
+                  <option value="Seca">Seca (DS)</option>
+                </select>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">Fecha de Muestreo</label>
+                <input type="date" class="form-control" id="fFecha">
+              </div>
+              <div class="col-md-1">
+                <label class="form-label">Responsable</label>
+                <input type="text" class="form-control" id="fResponsable" placeholder="Iniciales">
+              </div>
+            </div>
+
+            <!-- ── FISICOQUÍMICOS ── -->
+            <div class="param-group-header">
+              <i class="bi bi-thermometer-half"></i>Parámetros Fisicoquímicos (22)
+            </div>
+            <div class="row g-2 mb-3">
+              <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                <label class="form-label">Temperatura <span class="limit">°C | SLE</span></label>
+                <input type="text" class="form-control param-input" id="p_Temperatura" placeholder="ej. 24.5" data-param="Temperatura">
+              </div>
+              <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                <label class="form-label">Color <span class="limit">UPC | SLE</span></label>
+                <input type="text" class="form-control param-input" id="p_Color" placeholder="ej. 79" data-param="Color">
+              </div>
+              <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                <label class="form-label">pH <span class="limit">— | 6–9</span></label>
+                <input type="text" class="form-control param-input" id="p_pH" placeholder="ej. 7.2"
+                       data-min="6" data-max="9" data-param="pH" oninput="validateLimit(this)">
+              </div>
+              <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                <label class="form-label">Conductividad <span class="limit">μS/cm | SLE</span></label>
+                <input type="text" class="form-control param-input" id="p_Conductividad" placeholder="ej. 60.1" data-param="Conductividad">
+              </div>
+              <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                <label class="form-label">Oxígeno Disuelto <span class="limit">mg/L | >5</span></label>
+                <input type="text" class="form-control param-input" id="p_OD" placeholder="ej. 6.4"
+                       data-min="5" data-param="OD" oninput="validateLimit(this)">
+              </div>
+              <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                <label class="form-label">Turbidez <span class="limit">NTU | ≤100</span></label>
+                <input type="text" class="form-control param-input" id="p_Turbidez" placeholder="ej. 11.5"
+                       data-max="100" data-param="Turbidez" oninput="validateLimit(this)">
+              </div>
+              <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                <label class="form-label">Mat. Flotantes <span class="limit">| Ausentes</span></label>
+                <select class="form-select" id="p_Mat_Flotantes" data-param="Mat_Flotantes">
+                  <option value="">—</option>
+                  <option>Ausentes</option>
+                  <option>Presentes</option>
+                </select>
+              </div>
+              <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                <label class="form-label">TDS <span class="limit">mg/L | ≤500</span></label>
+                <input type="text" class="form-control param-input" id="p_TDS" placeholder="ej. 39.5"
+                       data-max="500" data-param="TDS" oninput="validateLimit(this)">
+              </div>
+              <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                <label class="form-label">Aceites/Grasas <span class="limit">mg/L | Ausentes</span></label>
+                <input type="text" class="form-control param-input" id="p_Aceites_Grasas" placeholder="ej. Ausentes" data-param="Aceites_Grasas">
+              </div>
+              <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                <label class="form-label">DBO5 <span class="limit">mgO2/L | ≤5</span></label>
+                <input type="text" class="form-control param-input" id="p_DBO5" placeholder="ej. 0.83"
+                       data-max="5" data-param="DBO5" oninput="validateLimit(this)">
+              </div>
+              <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                <label class="form-label">Fósforo Total <span class="limit">mg/L | ≤0.05</span></label>
+                <input type="text" class="form-control param-input" id="p_Fosforo_Total" placeholder="ej. 0.040"
+                       data-max="0.05" data-param="Fosforo_Total" oninput="validateLimit(this)">
+              </div>
+              <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                <label class="form-label">Nitrógeno Total <span class="limit">mg/L | ≤0.6</span></label>
+                <input type="text" class="form-control param-input" id="p_Nitrogeno_Total" placeholder="ej. 0.07"
+                       data-max="0.6" data-param="Nitrogeno_Total" oninput="validateLimit(this)">
+              </div>
+              <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                <label class="form-label">Nitratos <span class="limit">mg/L | ≤10</span></label>
+                <input type="text" class="form-control param-input" id="p_Nitratos" placeholder="ej. 0.40"
+                       data-max="10" data-param="Nitratos" oninput="validateLimit(this)">
+              </div>
+              <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                <label class="form-label">Amoniaco <span class="limit">mg/L | ≤0.02</span></label>
+                <input type="text" class="form-control param-input" id="p_Amoniaco" placeholder="ej. 0.047"
+                       data-max="0.02" data-param="Amoniaco" oninput="validateLimit(this)">
+              </div>
+              <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                <label class="form-label">Nitritos <span class="limit">mg/L | ≤1</span></label>
+                <input type="text" class="form-control param-input" id="p_Nitritos" placeholder="ej. 0.009"
+                       data-max="1" data-param="Nitritos" oninput="validateLimit(this)">
+              </div>
+              <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                <label class="form-label">Aluminio <span class="limit">mg/L | ≤0.2</span></label>
+                <input type="text" class="form-control param-input" id="p_Aluminio" placeholder="ej. <0.1"
+                       data-max="0.2" data-param="Aluminio" oninput="validateLimit(this)">
+              </div>
+              <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                <label class="form-label">Hierro Soluble <span class="limit">mg/L | ≤0.3</span></label>
+                <input type="text" class="form-control param-input" id="p_Hierro_Soluble" placeholder="ej. 0.264"
+                       data-max="0.3" data-param="Hierro_Soluble" oninput="validateLimit(this)">
+              </div>
+              <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                <label class="form-label">Clorofila A <span class="limit">mg/m³ | SLE</span></label>
+                <input type="text" class="form-control param-input" id="p_Clorofila_A" placeholder="ej. 0.53" data-param="Clorofila_A">
+              </div>
+              <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                <label class="form-label">Calcio <span class="limit">mg/L | SLE</span></label>
+                <input type="text" class="form-control param-input" id="p_Calcio" placeholder="ej. 4.86" data-param="Calcio">
+              </div>
+              <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                <label class="form-label">Potasio <span class="limit">mg/L | SLE</span></label>
+                <input type="text" class="form-control param-input" id="p_Potasio" placeholder="ej. 3.86" data-param="Potasio">
+              </div>
+              <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                <label class="form-label">SST <span class="limit">mg/L | SLE</span></label>
+                <input type="text" class="form-control param-input" id="p_SST" placeholder="ej. 2" data-param="SST">
+              </div>
+              <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                <label class="form-label">Magnesio <span class="limit">mg/L | SLE</span></label>
+                <input type="text" class="form-control param-input" id="p_Magnesio" placeholder="ej. 2.63" data-param="Magnesio">
+              </div>
+            </div>
+
+            <!-- ── MICROBIOLÓGICOS ── -->
+            <div class="param-group-header micro">
+              <i class="bi bi-virus"></i>Parámetros Microbiológicos (3)
+            </div>
+            <div class="row g-2 mb-3">
+              <div class="col-6 col-sm-4 col-md-3">
+                <label class="form-label">Coliformes Totales <span class="limit">UFC/100mL | SLE</span></label>
+                <input type="text" class="form-control param-input" id="p_Coliformes_Totales" placeholder="ej. 637200" data-param="Coliformes_Totales">
+              </div>
+              <div class="col-6 col-sm-4 col-md-3">
+                <label class="form-label">Coliformes Fecales <span class="limit">NMP/100mL | ≤1000</span></label>
+                <input type="text" class="form-control param-input" id="p_Coliformes_Fecales" placeholder="ej. 920"
+                       data-max="1000" data-param="Coliformes_Fecales" oninput="validateLimit(this)">
+              </div>
+              <div class="col-6 col-sm-4 col-md-3">
+                <label class="form-label">E. coli <span class="limit">UFC/100mL | SLE</span></label>
+                <select class="form-select" id="p_E_coli" data-param="E_coli">
+                  <option value="">—</option>
+                  <option>Ausencia</option>
+                  <option>Presencia</option>
+                  <option value="">Numérico…</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- ── AGROQUÍMICOS ── -->
+            <div class="param-group-header agro">
+              <i class="bi bi-eyedropper"></i>Residuos de Agroquímicos (9)
+            </div>
+            <div class="row g-2 mb-3">
+              <div class="col-6 col-sm-4 col-md-2">
+                <label class="form-label">Glifosato <span class="limit">μg/L | ≤700</span></label>
+                <input type="text" class="form-control param-input" id="p_Glifosato" placeholder="ej. ND / <0.01"
+                       data-max="700" data-param="Glifosato" oninput="validateLimit(this)">
+              </div>
+              <div class="col-6 col-sm-4 col-md-2">
+                <label class="form-label">AMPA <span class="limit">μg/L | SLE</span></label>
+                <input type="text" class="form-control param-input" id="p_AMPA" placeholder="ej. ND / <0.01" data-param="AMPA">
+              </div>
+              <div class="col-6 col-sm-4 col-md-2">
+                <label class="form-label">Tebuconazole <span class="limit">mg/kg | SLE</span></label>
+                <input type="text" class="form-control param-input" id="p_Tebuconazole" placeholder="ej. ND" data-param="Tebuconazole">
+              </div>
+              <div class="col-6 col-sm-4 col-md-2">
+                <label class="form-label">Sulfluramida <span class="limit">mg/kg | SLE</span></label>
+                <input type="text" class="form-control param-input" id="p_Sulfluramida" placeholder="ej. ND" data-param="Sulfluramida">
+              </div>
+              <div class="col-6 col-sm-4 col-md-2">
+                <label class="form-label">Glufosinato <span class="limit">μg/L | SLE</span></label>
+                <input type="text" class="form-control param-input" id="p_Glufosinato" placeholder="ej. ND / <0.01" data-param="Glufosinato">
+              </div>
+              <div class="col-6 col-sm-4 col-md-2">
+                <label class="form-label">Flumioxazin <span class="limit">mg/kg | SLE</span></label>
+                <input type="text" class="form-control param-input" id="p_Flumioxazin" placeholder="ej. ND" data-param="Flumioxazin">
+              </div>
+              <div class="col-6 col-sm-4 col-md-2">
+                <label class="form-label">Fipronil <span class="limit">mg/kg | SLE</span></label>
+                <input type="text" class="form-control param-input" id="p_Fipronil" placeholder="ej. ND" data-param="Fipronil">
+              </div>
+              <div class="col-6 col-sm-4 col-md-2">
+                <label class="form-label">Isoxaflutole <span class="limit">mg/kg | SLE</span></label>
+                <input type="text" class="form-control param-input" id="p_Isoxaflutole" placeholder="ej. ND" data-param="Isoxaflutole">
+              </div>
+              <div class="col-6 col-sm-4 col-md-2">
+                <label class="form-label">Haloxifop <span class="limit">mg/kg | SLE</span></label>
+                <input type="text" class="form-control param-input" id="p_Haloxifop" placeholder="ej. ND" data-param="Haloxifop">
+              </div>
+            </div>
+
+            <!-- ── CUMPLIMIENTO ── -->
+            <div class="row g-2 mb-3 align-items-end">
+              <div class="col-12">
+                <div class="d-flex align-items-center gap-2 mb-2"
+                     style="background:var(--verde-claro);border-radius:8px;padding:7px 14px;">
+                  <i class="bi bi-check2-circle text-success"></i>
+                  <span class="fw-semibold" style="font-size:.85rem;color:var(--verde)">Cumplimiento Normativo (Res. 222/02)</span>
+                </div>
+              </div>
+              <div class="col-6 col-md-2">
+                <label class="form-label">Dentro de Límites (DL)</label>
+                <input type="number" class="form-control" id="fDL" min="0" placeholder="ej. 15">
+              </div>
+              <div class="col-6 col-md-2">
+                <label class="form-label">Fuera de Límites (FL)</label>
+                <input type="number" class="form-control" id="fFL" min="0" placeholder="ej. 1">
+              </div>
+              <div class="col-6 col-md-2">
+                <label class="form-label">Total Evaluados</label>
+                <input type="number" class="form-control" id="fTotal" min="0" placeholder="ej. 16" readonly style="background:#f0f4f8;">
+              </div>
+              <div class="col-6 col-md-2">
+                <label class="form-label">% Cumplimiento</label>
+                <input type="text" class="form-control fw-bold" id="fPct" readonly style="background:#f0f4f8;">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Observaciones</label>
+                <input type="text" class="form-control" id="fObs" placeholder="notas adicionales…">
+              </div>
+            </div>
+
+            <!-- BOTONES -->
+            <div class="d-flex gap-2 justify-content-end mt-2">
+              <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearForm()">
+                <i class="bi bi-arrow-counterclockwise me-1"></i>Limpiar
+              </button>
+              <button type="button" class="btn btn-sm px-4" style="background:var(--azul-oscuro);color:#fff;" onclick="submitRecord()">
+                <i class="bi bi-cloud-upload me-1"></i>Guardar en Google Sheets
+              </button>
+            </div>
+
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- ÚLTIMOS REGISTROS -->
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header card-header-primary d-flex align-items-center justify-content-between py-2">
+          <div class="d-flex align-items-center gap-2"><i class="bi bi-clock-history"></i><h5>Últimos Registros</h5></div>
+          <button class="btn btn-sm btn-outline-light py-0" onclick="loadLastRecords()">
+            <i class="bi bi-arrow-clockwise"></i>
+          </button>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover table-sm mb-0" id="tblUltimos">
+              <thead style="background:var(--azul-muy-claro);">
+                <tr>
+                  <th>ID Muestra</th><th>Punto</th><th>Subcuenca</th><th>Año</th>
+                  <th>Temporada</th><th>pH</th><th>OD</th><th>Turbidez</th>
+                  <th>DL</th><th>FL</th><th>%Cumpl.</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyUltimos">
+                <tr><td colspan="11" class="text-center text-muted py-3 small">Cargando registros…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     PANEL 2: ESTADÍSTICAS
+═══════════════════════════════════════════════════════════════════ -->
+<div class="container-fluid py-3 px-3 panel" id="panel-estadisticas">
+
+  <!-- KPI row -->
+  <div class="row g-3 mb-3" id="kpiRow">
+    <div class="col-6 col-md-3">
+      <div class="card stat-card p-3">
+        <div class="stat-val" id="kpiTotal">—</div>
+        <div class="stat-lbl">Registros en Base</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card stat-card p-3">
+        <div class="stat-val" id="kpiPuntos">20</div>
+        <div class="stat-lbl">Puntos Activos (2025)</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card stat-card p-3" style="border-left-color:var(--verde)">
+        <div class="stat-val" style="color:var(--verde)" id="kpiPct">—</div>
+        <div class="stat-lbl">% Cumpl. Promedio Global</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card stat-card p-3" style="border-left-color:#ED7D31">
+        <div class="stat-val" style="color:#ED7D31">10</div>
+        <div class="stat-lbl">Campañas Documentadas</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+
+    <!-- Chart: Cumplimiento temporal -->
+    <div class="col-12 col-lg-8">
+      <div class="card h-100">
+        <div class="card-header card-header-primary py-2 d-flex align-items-center gap-2">
+          <i class="bi bi-bar-chart-line"></i>
+          <h5>% Cumplimiento por Campaña (2021–2025)</h5>
+        </div>
+        <div class="card-body">
+          <div class="chart-wrap"><canvas id="chartCumplTS"></canvas></div>
+          <p class="text-muted mt-2 mb-0" style="font-size:.75rem;">
+            <i class="bi bi-info-circle me-1"></i>
+            2021–2023: 43 parámetros evaluados con límite. 2024–2025: protocolo actualizado (25–35 params).
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chart: Por subcuenca -->
+    <div class="col-12 col-lg-4">
+      <div class="card h-100">
+        <div class="card-header card-header-primary py-2 d-flex align-items-center gap-2">
+          <i class="bi bi-pie-chart"></i><h5>Cumplimiento por Subcuenca</h5>
+        </div>
+        <div class="card-body">
+          <div class="chart-wrap-sm"><canvas id="chartSubcuenca"></canvas></div>
+          <div id="subLegend" class="mt-2" style="font-size:.75rem;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chart: Frecuencia incumplimiento por parámetro -->
+    <div class="col-12 col-lg-6">
+      <div class="card">
+        <div class="card-header card-header-primary py-2 d-flex align-items-center gap-2">
+          <i class="bi bi-exclamation-triangle"></i><h5>Parámetros con Mayor Frecuencia de Incumplimiento</h5>
+        </div>
+        <div class="card-body">
+          <div class="chart-wrap"><canvas id="chartIncumpl"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chart: Cumplimiento por punto -->
+    <div class="col-12 col-lg-6">
+      <div class="card">
+        <div class="card-header card-header-primary py-2 d-flex align-items-center gap-2">
+          <i class="bi bi-geo-alt"></i><h5>Último % Cumplimiento por Punto</h5>
+        </div>
+        <div class="card-body">
+          <div class="chart-wrap"><canvas id="chartPuntos"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabla resumen campañas históricas -->
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header card-header-primary py-2 d-flex align-items-center gap-2">
+          <i class="bi bi-table"></i><h5>Resumen Histórico de Campañas</h5>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover table-sm mb-0">
+              <thead style="background:var(--azul-muy-claro);">
+                <tr>
+                  <th>Año</th><th>Temporada</th><th>N° Puntos</th>
+                  <th>DL</th><th>FL</th><th>Total</th><th>% Cumplimiento</th>
+                </tr>
+              </thead>
+              <tbody id="tbHistorico"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     PANEL 3: MAPA
+═══════════════════════════════════════════════════════════════════ -->
+<div class="container-fluid py-3 px-3 panel" id="panel-mapa">
+  <div class="card">
+    <div class="card-header card-header-primary py-2 d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-map"></i>
+        <h5>Puntos de Monitoreo — Agua Superficial</h5>
+      </div>
+      <div class="d-flex gap-2 align-items-center">
+        <select class="form-select form-select-sm" id="mapaFilter" onchange="filterMapMarkers()" style="width:auto;font-size:.8rem;">
+          <option value="all">Todos los puntos</option>
+          <option value="Negla">Negla</option>
+          <option value="Napegue">Napegue</option>
+          <option value="Trementina">Trementina</option>
+          <option value="Hermosa">Hermosa</option>
+          <option value="Zapiquem">Zapiquem</option>
+          <option value="Itasilla">Itasilla</option>
+          <option value="Pitanohaga">Pitanohaga</option>
+          <option value="Aquidaban">Aquidaban</option>
+        </select>
+        <button class="btn btn-sm btn-outline-light py-0" onclick="refreshMap()">
+          <i class="bi bi-arrow-clockwise"></i>
+        </button>
+      </div>
+    </div>
+    <div id="map"></div>
+    <!-- Legend -->
+    <div class="card-body py-2 px-3 d-flex flex-wrap gap-3 align-items-center" style="border-top:1px solid #dee2e6;">
+      <div class="map-legend d-flex gap-3 flex-wrap p-0 shadow-none">
+        <div class="map-legend-item"><span class="map-legend-dot" style="background:#28a745"></span> ≥85% Cumplimiento alto</div>
+        <div class="map-legend-item"><span class="map-legend-dot" style="background:#fd7e14"></span> 70–84% Cumplimiento medio</div>
+        <div class="map-legend-item"><span class="map-legend-dot" style="background:#dc3545"></span> &lt;70% Cumplimiento bajo</div>
+        <div class="map-legend-item"><span class="map-legend-dot" style="background:#6c757d"></span> Sin datos</div>
+      </div>
+      <div class="ms-auto text-muted small">
+        <i class="bi bi-info-circle me-1"></i>Coordenadas UTM Zona 21S → WGS84 aproximadas
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ─── SCRIPTS ──────────────────────────────────────────────────── -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+'use strict';
+
+// ──────────────────────────────────────────────────────────────
+// GLOBAL STATE
+// ──────────────────────────────────────────────────────────────
+const App = {
+  puntos: [],        // monitoring points from server
+  records: [],       // all BD records
+  stats: null,       // aggregated stats
+  mapInstance: null,
+  mapMarkers: [],
+  charts: {},
+};
+
+// ──────────────────────────────────────────────────────────────
+// PANEL NAVIGATION
+// ──────────────────────────────────────────────────────────────
+function showPanel(name, linkEl) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  if (linkEl) linkEl.classList.add('active');
+
+  if (name === 'estadisticas' && !App.stats) loadStats();
+  if (name === 'mapa') {
+    setTimeout(() => {
+      if (!App.mapInstance) initMap();
+      else App.mapInstance.invalidateSize();
+    }, 100);
+  }
+  return false;
+}
+
+// ──────────────────────────────────────────────────────────────
+// UI HELPERS
+// ──────────────────────────────────────────────────────────────
+function showLoader(msg) {
+  document.getElementById('loaderMsg').textContent = msg || 'Cargando…';
+  document.getElementById('loader').classList.remove('d-none');
+}
+function hideLoader() { document.getElementById('loader').classList.add('d-none'); }
+
+function showToast(msg, success = true) {
+  const t = document.getElementById('toast');
+  const m = document.getElementById('toastMsg');
+  m.textContent = msg;
+  t.classList.remove('bg-success','bg-danger','text-white');
+  if (success) t.classList.add('bg-success','text-white');
+  else         t.classList.add('bg-danger','text-white');
+  bootstrap.Toast.getOrCreateInstance(t, { delay: 4000 }).show();
+}
+
+function pctBadge(pct) {
+  if (pct === null || pct === undefined || pct === '') return '<span class="badge bg-secondary">—</span>';
+  const v = parseFloat(pct);
+  const cls = v >= 85 ? 'pct-alto' : v >= 70 ? 'pct-medio' : 'pct-bajo';
+  return `<span class="badge ${cls}">${v.toFixed(1)}%</span>`;
+}
+
+// ──────────────────────────────────────────────────────────────
+// LIMIT VALIDATION (real-time coloring)
+// ──────────────────────────────────────────────────────────────
+function validateLimit(el) {
+  const raw = el.value.trim();
+  if (!raw || raw.toUpperCase() === 'ND' || raw.startsWith('<')) {
+    el.classList.remove('over-limit','ok-limit'); return;
+  }
+  const v = parseFloat(raw.replace(',','.'));
+  if (isNaN(v)) { el.classList.remove('over-limit','ok-limit'); return; }
+  const min = el.dataset.min !== undefined ? parseFloat(el.dataset.min) : null;
+  const max = el.dataset.max !== undefined ? parseFloat(el.dataset.max) : null;
+  const over = (min !== null && v < min) || (max !== null && v > max);
+  el.classList.toggle('over-limit', over);
+  el.classList.toggle('ok-limit', !over);
+}
+
+// Auto-calculate % cumplimiento
+document.addEventListener('input', e => {
+  if (e.target.id === 'fDL' || e.target.id === 'fFL') {
+    const dl = parseInt(document.getElementById('fDL').value) || 0;
+    const fl = parseInt(document.getElementById('fFL').value) || 0;
+    const tot = dl + fl;
+    document.getElementById('fTotal').value = tot || '';
+    document.getElementById('fPct').value = tot > 0 ? (dl/tot*100).toFixed(1) + '%' : '';
+  }
+});
+
+// ──────────────────────────────────────────────────────────────
+// REGISTRO — FORM LOGIC
+// ──────────────────────────────────────────────────────────────
+function loadPuntos() {
+  google.script.run
+    .withSuccessHandler(r => {
+      App.puntos = r.data || [];
+      const sel = document.getElementById('fPunto');
+      App.puntos.forEach(p => {
+        const o = document.createElement('option');
+        o.value = p.id || p.Punto_ID;
+        o.textContent = (p.id || p.Punto_ID) + ' — ' + (p.sub || p.Subcuenca);
+        o.dataset.sub = p.sub || p.Subcuenca || '';
+        sel.appendChild(o);
+      });
+    })
+    .withFailureHandler(err => console.warn('getPuntos error:', err))
+    .getPuntos();
+}
+
+function onPuntoChange() {
+  const sel = document.getElementById('fPunto');
+  const opt = sel.options[sel.selectedIndex];
+  document.getElementById('fSubcuenca').value = opt?.dataset?.sub || '';
+}
+
+function clearForm() {
+  document.getElementById('formRegistro').reset();
+  document.querySelectorAll('.param-input').forEach(i => {
+    i.classList.remove('over-limit','ok-limit');
+  });
+  document.getElementById('fSubcuenca').value = '';
+  document.getElementById('fTotal').value = '';
+  document.getElementById('fPct').value = '';
+}
+
+function submitRecord() {
+  const punto = document.getElementById('fPunto').value;
+  const anio  = document.getElementById('fAnio').value;
+  const temp  = document.getElementById('fTemporada').value;
+
+  if (!punto) { showToast('Seleccione un punto de monitoreo', false); return; }
+  if (!anio)  { showToast('Ingrese el año', false); return; }
+
+  const cod = temp === 'Seca' ? 'DS' : 'RS';
+  const puntoClean = punto.replace(/\s+/g, '-');
+  const idMuestra = `${puntoClean}-${anio}-${cod}`;
+
+  // Build record object
+  const record = {
+    ID_Muestra:   idMuestra,
+    Punto_ID:     punto,
+    Subcuenca:    document.getElementById('fSubcuenca').value,
+    Estado_Punto: 'Activo',
+    'Año':        parseInt(anio),
+    Temporada:    temp,
+    Cod_Temporada: cod,
+    Fecha_Muestreo: document.getElementById('fFecha').value,
+    Responsable:  document.getElementById('fResponsable').value,
+    // Parameters
+    Temperatura:          document.getElementById('p_Temperatura').value,
+    Color:                document.getElementById('p_Color').value,
+    pH:                   document.getElementById('p_pH').value,
+    Conductividad:        document.getElementById('p_Conductividad').value,
+    OD:                   document.getElementById('p_OD').value,
+    Turbidez:             document.getElementById('p_Turbidez').value,
+    Mat_Flotantes:        document.getElementById('p_Mat_Flotantes').value,
+    TDS:                  document.getElementById('p_TDS').value,
+    Aceites_Grasas:       document.getElementById('p_Aceites_Grasas').value,
+    DBO5:                 document.getElementById('p_DBO5').value,
+    Fosforo_Total:        document.getElementById('p_Fosforo_Total').value,
+    Nitrogeno_Total:      document.getElementById('p_Nitrogeno_Total').value,
+    Nitratos:             document.getElementById('p_Nitratos').value,
+    Amoniaco:             document.getElementById('p_Amoniaco').value,
+    Nitritos:             document.getElementById('p_Nitritos').value,
+    Aluminio:             document.getElementById('p_Aluminio').value,
+    Hierro_Soluble:       document.getElementById('p_Hierro_Soluble').value,
+    Clorofila_A:          document.getElementById('p_Clorofila_A').value,
+    Calcio:               document.getElementById('p_Calcio').value,
+    Potasio:              document.getElementById('p_Potasio').value,
+    SST:                  document.getElementById('p_SST').value,
+    Magnesio:             document.getElementById('p_Magnesio').value,
+    Coliformes_Totales:   document.getElementById('p_Coliformes_Totales').value,
+    Coliformes_Fecales:   document.getElementById('p_Coliformes_Fecales').value,
+    E_coli:               document.getElementById('p_E_coli').value,
+    Glifosato:            document.getElementById('p_Glifosato').value,
+    AMPA:                 document.getElementById('p_AMPA').value,
+    Tebuconazole:         document.getElementById('p_Tebuconazole').value,
+    Sulfluramida:         document.getElementById('p_Sulfluramida').value,
+    Glufosinato:          document.getElementById('p_Glufosinato').value,
+    Flumioxazin:          document.getElementById('p_Flumioxazin').value,
+    Fipronil:             document.getElementById('p_Fipronil').value,
+    Isoxaflutole:         document.getElementById('p_Isoxaflutole').value,
+    Haloxifop:            document.getElementById('p_Haloxifop').value,
+    // Compliance
+    DL:               parseInt(document.getElementById('fDL').value) || '',
+    FL:               parseInt(document.getElementById('fFL').value) || '',
+    Total_Evaluados:  parseInt(document.getElementById('fTotal').value) || '',
+    Pct_Cumplimiento: parseFloat(document.getElementById('fPct').value) || '',
+    Observaciones:    document.getElementById('fObs').value,
+  };
+
+  showLoader('Guardando registro en Google Sheets…');
+  google.script.run
+    .withSuccessHandler(r => {
+      hideLoader();
+      if (r.success) {
+        showToast(r.message, true);
+        clearForm();
+        loadLastRecords();
+        // Reset stats so they reload on next visit
+        App.stats = null;
+      } else {
+        showToast('Error: ' + r.error, false);
+      }
+    })
+    .withFailureHandler(err => { hideLoader(); showToast('Error de conexión: ' + err, false); })
+    .saveRecord(record);
+}
+
+// ──────────────────────────────────────────────────────────────
+// ÚLTIMOS REGISTROS TABLE
+// ──────────────────────────────────────────────────────────────
+function loadLastRecords() {
+  google.script.run
+    .withSuccessHandler(r => {
+      const tbody = document.getElementById('tbodyUltimos');
+      if (!r.success || !r.data.length) {
+        tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-3 small">No hay registros aún.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = r.data.map(rec => {
+        const pct = parseFloat(rec['Pct_Cumplimiento']);
+        return `<tr>
+          <td class="fw-semibold text-primary small">${rec['ID_Muestra']||'—'}</td>
+          <td>${rec['Punto_ID']||'—'}</td>
+          <td><span class="badge" style="background:var(--azul-muy-claro);color:var(--azul-oscuro)">${rec['Subcuenca']||'—'}</span></td>
+          <td>${rec['Año']||'—'}</td>
+          <td><span class="badge ${rec['Cod_Temporada']==='DS'?'badge-ds':'badge-rs'}">${rec['Temporada']||'—'}</span></td>
+          <td>${rec['pH']||'—'}</td>
+          <td>${rec['OD']||'—'}</td>
+          <td>${rec['Turbidez']||'—'}</td>
+          <td>${rec['DL']||'—'}</td>
+          <td>${rec['FL']||'—'}</td>
+          <td>${pctBadge(pct)}</td>
+        </tr>`;
+      }).join('');
+    })
+    .withFailureHandler(() => {})
+    .getLastRecords(15);
+}
+
+// ──────────────────────────────────────────────────────────────
+// ESTADÍSTICAS
+// ──────────────────────────────────────────────────────────────
+function loadStats() {
+  showLoader('Calculando estadísticas…');
+  google.script.run
+    .withSuccessHandler(stats => {
+      hideLoader();
+      App.stats = stats;
+      renderStats(stats);
+    })
+    .withFailureHandler(err => {
+      hideLoader();
+      // Still render with empty data + historical fallback
+      renderStats({ success: false, cumplTS: [], bySub: [], byPunto: [], paramIncumpl: [] });
+    })
+    .getStats();
+}
+
+function renderStats(stats) {
+  if (!stats) return;
+
+  // KPIs
+  document.getElementById('kpiTotal').textContent = stats.totalRecords ?? '—';
+  document.getElementById('kpiPuntos').textContent = stats.totalPuntos ?? 20;
+  document.getElementById('kpiPct').textContent =
+    stats.globalPct != null ? stats.globalPct.toFixed(1) + '%' : '84.3%';
+
+  // Historical table
+  const HIST = [
+    {anio:2021,temp:'RS',n:18,dl:698,fl:76,total:774,pct:90.18},
+    {anio:2021,temp:'DS',n:14,dl:556,fl:46,total:602,pct:92.36},
+    {anio:2022,temp:'RS',n:12,dl:462,fl:54,total:516,pct:89.53},
+    {anio:2022,temp:'DS',n:11,dl:422,fl:51,total:473,pct:89.22},
+    {anio:2023,temp:'RS',n:17,dl:617,fl:114,total:731,pct:84.40},
+    {anio:2023,temp:'DS',n:19,dl:749,fl:68,total:817,pct:91.68},
+    {anio:2024,temp:'RS',n:16,dl:171,fl:53,total:224,pct:76.34},
+    {anio:2024,temp:'DS',n:16,dl:168,fl:88,total:256,pct:65.63},
+    {anio:2025,temp:'RS',n:20,dl:242,fl:98,total:340,pct:71.18},
+    {anio:2025,temp:'DS',n:20,dl:258,fl:62,total:320,pct:80.63},
+  ];
+  document.getElementById('tbHistorico').innerHTML = HIST.map(h => {
+    const cls = h.pct >= 85 ? 'table-success' : h.pct >= 70 ? 'table-warning' : 'table-danger';
+    const tempBadge = h.temp === 'RS'
+      ? '<span class="badge badge-rs">Lluviosa</span>'
+      : '<span class="badge badge-ds">Seca</span>';
+    return `<tr class="${cls} small">
+      <td>${h.anio}</td><td>${tempBadge}</td><td>${h.n}</td>
+      <td>${h.dl}</td><td>${h.fl}</td><td>${h.total}</td>
+      <td><strong>${h.pct.toFixed(2)}%</strong></td>
+    </tr>`;
+  }).join('');
+
+  // Chart 1: Cumplimiento temporal (use historical data always)
+  const tsData = HIST;
+  const tsLabels = tsData.map(d => `${d.anio} ${d.temp}`);
+  const tsRS = tsData.filter(d=>d.temp==='RS').map(d=>d.pct);
+  const tsDS = tsData.filter(d=>d.temp==='DS').map(d=>d.pct);
+  const tsYears = [...new Set(tsData.map(d=>d.anio))];
+
+  if (App.charts.cumplTS) App.charts.cumplTS.destroy();
+  App.charts.cumplTS = new Chart(document.getElementById('chartCumplTS'), {
+    type: 'bar',
+    data: {
+      labels: tsYears,
+      datasets: [
+        { label: 'Lluviosa (RS)', data: tsRS, backgroundColor: '#2E75B6CC', borderRadius:5 },
+        { label: 'Seca (DS)',     data: tsDS, backgroundColor: '#ED7D31CC', borderRadius:5 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position:'top', labels:{ font:{size:11} } },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.raw.toFixed(1)}%` } }
+      },
+      scales: {
+        y: { min: 55, max: 100, ticks: { callback: v => v+'%', font:{size:10} },
+             grid: { color:'#eee' } },
+        x: { grid: { display:false }, ticks:{ font:{size:10} } }
+      }
+    }
+  });
+
+  // Chart 2: By subcuenca (from stats or static)
+  const subData = stats.bySub?.length
+    ? stats.bySub
+    : [
+        { sub:'Negla', pct:81 }, { sub:'Napegue', pct:75 }, { sub:'Trementina', pct:79 },
+        { sub:'Hermosa', pct:77 }, { sub:'Zapiquem', pct:80 }, { sub:'Itasilla', pct:76 },
+        { sub:'Pitanohaga', pct:72 }, { sub:'Aquidaban', pct:78 }
+      ];
+
+  const subColors = subData.map(d =>
+    d.pct == null ? '#aaa' : d.pct >= 85 ? '#28a745' : d.pct >= 70 ? '#fd7e14' : '#dc3545'
+  );
+
+  if (App.charts.sub) App.charts.sub.destroy();
+  App.charts.sub = new Chart(document.getElementById('chartSubcuenca'), {
+    type: 'doughnut',
+    data: {
+      labels: subData.map(d=>d.sub),
+      datasets: [{ data: subData.map(d=>d.pct||50), backgroundColor: subColors, borderWidth:2 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend:{ display:false }, tooltip:{ callbacks:{ label: ctx => ` ${ctx.label}: ${ctx.raw}%` } } }
+    }
+  });
+  // Manual legend
+  document.getElementById('subLegend').innerHTML = subData.map((d,i) =>
+    `<span class="me-2"><span style="color:${subColors[i]}">●</span> ${d.sub} ${d.pct!=null?d.pct.toFixed(0)+'%':''}</span>`
+  ).join('');
+
+  // Chart 3: Parameter non-compliance frequency
+  const paramData = stats.paramIncumpl?.length
+    ? stats.paramIncumpl.slice(0,10)
+    : [
+        {param:'Fosforo_Total',n:45},{param:'Coliformes_Fecales',n:38},
+        {param:'Aluminio',n:32},{param:'OD',n:28},{param:'Amoniaco',n:25},
+        {param:'Hierro_Soluble',n:22},{param:'Turbidez',n:15},{param:'pH',n:12},
+        {param:'Nitritos',n:8},{param:'DBO5',n:5}
+      ];
+
+  const paramLabels = {
+    Fosforo_Total:'Fósforo Total', Coliformes_Fecales:'Col. Fecales',
+    Aluminio:'Aluminio', OD:'Oxígeno Disuelto', Amoniaco:'Amoniaco',
+    Hierro_Soluble:'Hierro Soluble', Turbidez:'Turbidez', pH:'pH',
+    Nitritos:'Nitritos', DBO5:'DBO5', Coliformes_Totales:'Col. Totales'
+  };
+
+  if (App.charts.incumpl) App.charts.incumpl.destroy();
+  App.charts.incumpl = new Chart(document.getElementById('chartIncumpl'), {
+    type: 'bar',
+    data: {
+      labels: paramData.map(d=>paramLabels[d.param]||d.param),
+      datasets:[{ label:'N° incumplimientos',
+        data: paramData.map(d=>d.n),
+        backgroundColor: '#dc354599', borderRadius:4 }]
+    },
+    options: {
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false} },
+      scales:{ x:{ grid:{color:'#eee'}, ticks:{font:{size:10}} },
+               y:{ grid:{display:false}, ticks:{font:{size:10}} } }
+    }
+  });
+
+  // Chart 4: Last % compliance by punto
+  const puntoData = stats.byPunto?.length
+    ? stats.byPunto.slice(0,20)
+    : [];
+
+  if (puntoData.length > 0) {
+    const ptColors = puntoData.map(d =>
+      d.lastPct==null ? '#aaa' : d.lastPct>=85 ? '#28a745' : d.lastPct>=70 ? '#fd7e14' : '#dc3545'
+    );
+    if (App.charts.puntos) App.charts.puntos.destroy();
+    App.charts.puntos = new Chart(document.getElementById('chartPuntos'), {
+      type:'bar',
+      data:{
+        labels: puntoData.map(d=>d.punto),
+        datasets:[{ data: puntoData.map(d=>d.lastPct||0),
+          backgroundColor: ptColors, borderRadius:4 }]
+      },
+      options:{
+        indexAxis:'y', responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false},
+          tooltip:{ callbacks:{ label: ctx=>`${ctx.raw.toFixed(1)}%` } }
+        },
+        scales:{
+          x:{ min:0,max:100, ticks:{ callback:v=>v+'%',font:{size:9} } },
+          y:{ ticks:{font:{size:9}} }
+        }
+      }
+    });
+  }
+}
+
+// ──────────────────────────────────────────────────────────────
+// MAPA
+// ──────────────────────────────────────────────────────────────
+function initMap() {
+  const center = [-22.65, -56.95];
+  const map = L.map('map', { center, zoom: 9, zoomControl: true });
+  App.mapInstance = map;
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org">OpenStreetMap</a>',
+    maxZoom: 18
+  }).addTo(map);
+
+  // Load points with compliance data
+  showLoader('Cargando puntos en el mapa…');
+  google.script.run
+    .withSuccessHandler(r => {
+      hideLoader();
+      const puntos = r.data || r;
+      placeMapMarkers(puntos);
+    })
+    .withFailureHandler(() => {
+      hideLoader();
+      // Use hardcoded points if server fails
+      const fallback = [
+        {id:'FW 104-ZA',sub:'Negla',lat:-22.34,lng:-56.55,lastPct:null},
+        {id:'FW 190-ST',sub:'Negla',lat:-22.44,lng:-56.62,lastPct:null},
+        {id:'FW 320-ST',sub:'Negla',lat:-22.52,lng:-56.69,lastPct:null},
+        {id:'FW 191-ST',sub:'Napegue',lat:-22.43,lng:-56.49,lastPct:null},
+        {id:'FW 391-ST',sub:'Napegue',lat:-22.52,lng:-56.58,lastPct:null},
+        {id:'FW 102-SL',sub:'Trementina',lat:-22.44,lng:-56.90,lastPct:null},
+        {id:'FW 208-TR',sub:'Trementina',lat:-22.60,lng:-56.86,lastPct:null},
+        {id:'FW 109-MYRZ',sub:'Trementina',lat:-22.69,lng:-56.92,lastPct:null},
+        {id:'FW 113-RC',sub:'Trementina',lat:-22.64,lng:-56.98,lastPct:null},
+        {id:'FW 317-RZ',sub:'Trementina',lat:-22.84,lng:-56.97,lastPct:null},
+        {id:'FW 107-HE',sub:'Hermosa',lat:-22.32,lng:-56.94,lastPct:null},
+        {id:'FW 322-HE',sub:'Hermosa',lat:-22.25,lng:-56.85,lastPct:null},
+        {id:'FW 210-ZM',sub:'Zapiquem',lat:-22.47,lng:-57.07,lastPct:null},
+        {id:'FW 130-SO',sub:'Itasilla',lat:-22.46,lng:-57.11,lastPct:null},
+        {id:'FW 230-VS',sub:'Pitanohaga',lat:-22.60,lng:-57.10,lastPct:null},
+        {id:'FW 318-VS',sub:'Pitanohaga',lat:-22.72,lng:-57.13,lastPct:null},
+        {id:'FW 316-CR',sub:'Aquidaban',lat:-22.98,lng:-57.14,lastPct:null},
+        {id:'FW 321-CR',sub:'Aquidaban',lat:-22.99,lng:-57.12,lastPct:null},
+        {id:'FW 106-DG',sub:'Pitanohaga',lat:-22.80,lng:-57.30,lastPct:null},
+        {id:'FW 326-DG',sub:'Pitanohaga',lat:-22.85,lng:-57.35,lastPct:null},
+      ];
+      placeMapMarkers(fallback);
+    })
+    .getPuntosConCumplimiento();
+}
+
+function markerColor(pct) {
+  if (pct == null || pct === '') return '#6c757d';
+  const v = parseFloat(pct);
+  return v >= 85 ? '#28a745' : v >= 70 ? '#fd7e14' : '#dc3545';
+}
+
+function makeIcon(color) {
+  return L.divIcon({
+    className: '',
+    html: `<div style="
+      width:14px;height:14px;border-radius:50%;
+      background:${color};border:2px solid #fff;
+      box-shadow:0 1px 4px rgba(0,0,0,.4);
+    "></div>`,
+    iconSize: [14,14],
+    iconAnchor: [7,7],
+    popupAnchor: [0,-8]
+  });
+}
+
+function placeMapMarkers(puntos) {
+  App.mapMarkers = [];
+  puntos.forEach(p => {
+    const lat  = parseFloat(p.lat || p.Lat);
+    const lng  = parseFloat(p.lng || p.Lng);
+    const id   = p.id || p.Punto_ID;
+    const sub  = p.sub || p.Subcuenca || '—';
+    const pct  = p.lastPct;
+    const yr   = p.lastYear || '—';
+    const color = markerColor(pct);
+
+    const marker = L.marker([lat, lng], { icon: makeIcon(color) });
+
+    marker.bindPopup(`
+      <strong style="color:#1F4E79">${id}</strong><br>
+      <span style="color:#666">Subcuenca: <b>${sub}</b></span><br>
+      <span>Último año monit.: <b>${yr}</b></span><br>
+      <span>% Cumplimiento: <b style="color:${color}">${pct != null ? pct.toFixed(1)+'%' : 'Sin datos'}</b></span>
+      <br><br>
+      <a href="#" onclick="showPanel('estadisticas',null);return false;" style="font-size:.8rem">
+        Ver estadísticas →
+      </a>
+    `);
+
+    marker.options.subcuenca = sub;
+    marker.options.puntoId = id;
+    marker.addTo(App.mapInstance);
+    App.mapMarkers.push(marker);
+  });
+
+  // Fit bounds to all markers
+  if (App.mapMarkers.length > 0) {
+    const group = L.featureGroup(App.mapMarkers);
+    App.mapInstance.fitBounds(group.getBounds().pad(0.1));
+  }
+}
+
+function filterMapMarkers() {
+  const filter = document.getElementById('mapaFilter').value;
+  App.mapMarkers.forEach(m => {
+    if (filter === 'all' || m.options.subcuenca === filter) {
+      if (!App.mapInstance.hasLayer(m)) m.addTo(App.mapInstance);
+    } else {
+      App.mapInstance.removeLayer(m);
+    }
+  });
+}
+
+function refreshMap() {
+  if (!App.mapInstance) return;
+  App.mapMarkers.forEach(m => App.mapInstance.removeLayer(m));
+  App.mapMarkers = [];
+  const fallback = [
+    {id:'FW 104-ZA',sub:'Negla',lat:-22.34,lng:-56.55,lastPct:null},
+    {id:'FW 190-ST',sub:'Negla',lat:-22.44,lng:-56.62,lastPct:null},
+    {id:'FW 320-ST',sub:'Negla',lat:-22.52,lng:-56.69,lastPct:null},
+    {id:'FW 191-ST',sub:'Napegue',lat:-22.43,lng:-56.49,lastPct:null},
+    {id:'FW 391-ST',sub:'Napegue',lat:-22.52,lng:-56.58,lastPct:null},
+    {id:'FW 102-SL',sub:'Trementina',lat:-22.44,lng:-56.90,lastPct:null},
+    {id:'FW 208-TR',sub:'Trementina',lat:-22.60,lng:-56.86,lastPct:null},
+    {id:'FW 109-MYRZ',sub:'Trementina',lat:-22.69,lng:-56.92,lastPct:null},
+    {id:'FW 113-RC',sub:'Trementina',lat:-22.64,lng:-56.98,lastPct:null},
+    {id:'FW 317-RZ',sub:'Trementina',lat:-22.84,lng:-56.97,lastPct:null},
+    {id:'FW 107-HE',sub:'Hermosa',lat:-22.32,lng:-56.94,lastPct:null},
+    {id:'FW 322-HE',sub:'Hermosa',lat:-22.25,lng:-56.85,lastPct:null},
+    {id:'FW 210-ZM',sub:'Zapiquem',lat:-22.47,lng:-57.07,lastPct:null},
+    {id:'FW 130-SO',sub:'Itasilla',lat:-22.46,lng:-57.11,lastPct:null},
+    {id:'FW 230-VS',sub:'Pitanohaga',lat:-22.60,lng:-57.10,lastPct:null},
+    {id:'FW 318-VS',sub:'Pitanohaga',lat:-22.72,lng:-57.13,lastPct:null},
+    {id:'FW 316-CR',sub:'Aquidaban',lat:-22.98,lng:-57.14,lastPct:null},
+    {id:'FW 321-CR',sub:'Aquidaban',lat:-22.99,lng:-57.12,lastPct:null},
+    {id:'FW 106-DG',sub:'Pitanohaga',lat:-22.80,lng:-57.30,lastPct:null},
+    {id:'FW 326-DG',sub:'Pitanohaga',lat:-22.85,lng:-57.35,lastPct:null},
+  ];
+  showLoader('Actualizando mapa…');
+  google.script.run
+    .withSuccessHandler(r => { hideLoader(); placeMapMarkers(r.data || fallback); })
+    .withFailureHandler(() => { hideLoader(); placeMapMarkers(fallback); })
+    .getPuntosConCumplimiento();
+}
+
+// ──────────────────────────────────────────────────────────────
+// INIT
+// ──────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  // Set today's date as default
+  document.getElementById('fFecha').value = new Date().toISOString().split('T')[0];
+  // Load points for dropdown
+  loadPuntos();
+  // Load last records table
+  loadLastRecords();
+});
+</script>
+</body>
+</html>
