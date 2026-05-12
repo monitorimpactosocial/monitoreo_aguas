@@ -307,3 +307,8 @@
   - Servidor local `http://127.0.0.1:8792/app/`: respuesta 200.
   - Captura escritorio: `C:\tmp\monitoreo_agua_gis_hidrografia.png`.
   - Captura movil: `C:\tmp\monitoreo_agua_gis_hidrografia_mobile.png`.
+- Commit funcional publicado: `22ec532`.
+- Verificacion posterior a GitHub Pages:
+  - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/gis_map.js?v=22ec532-2` respondio 200.
+  - El asset publicado ya contiene `hydrology` y `Rio Paraguay`.
+  - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/?v=22ec532-2` respondio 200 y carga `gis_map.js`.
