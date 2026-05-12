@@ -160,3 +160,32 @@
 - Resultado: push exitoso al repositorio `https://github.com/monitorimpactosocial/monitoreo_aguas.git`.
 - Commit publicado: `fac81e6`.
 - La URL publica esperada queda: `https://monitorimpactosocial.github.io/monitoreo_aguas/`, con redireccion automatica a la nueva app en `app/`.
+
+### Redisenio de claridad visual
+- El usuario reporto que la app funcionaba, pero se veia muy llena, apretada, desordenada y dificil de entender.
+- Se simplifico la primera pantalla:
+  - Navegacion principal reducida a `Resumen`, `Rio Paraguay`, `Series`, `Calidad estadistica` y `Fuentes`.
+  - Se elimino el panel lateral visible para evitar doble lectura.
+  - Los filtros tecnicos quedaron dentro de `Opciones avanzadas, trazabilidad y administracion`.
+  - La pantalla inicial queda enfocada en `Rio Paraguay` + `Hierro soluble`, evitando abrir con demasiadas series mezcladas.
+- Se reorganizo el tablero como lectura ejecutiva:
+  - Bloque inicial con contexto.
+  - Cuatro metricas principales.
+  - Grafico de evolucion en una tarjeta amplia.
+  - Lectura rapida y desvios separados debajo.
+- Se redujo el ancho de tablas:
+  - `Series` muestra solo columnas esenciales.
+  - `Rio Paraguay` muestra punto, tipo, parametro, periodo, n, valor y estado.
+  - La trazabilidad completa queda en `Fuentes`.
+- Se corrigio una inconsistencia visual:
+  - `Entrada` se muestra rojo.
+  - `Intermedio` se muestra amarillo.
+  - `Salida` se muestra verde.
+- Verificaciones:
+  - `node --check app\app.js`: sintaxis correcta.
+  - Validacion estatica de IDs requeridos y dataset local: correcta.
+  - Servidor local `http://127.0.0.1:8787/app/`: respuesta 200.
+  - Capturas Playwright con Chrome:
+    - Escritorio: `C:\tmp\monitoreo_agua_redesign_v2.png`.
+    - Movil: `C:\tmp\monitoreo_agua_mobile.png`.
+- Observacion: se intento una prueba programatica de consola con `npx -p playwright node`, pero el paquete no quedo resoluble por `require('playwright')` en ese modo. La verificacion visual por CLI de Playwright si funciono usando Chrome instalado.

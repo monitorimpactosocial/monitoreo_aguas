@@ -261,6 +261,11 @@ function populateFilters() {
   fillMultiple(dom.approachFilter, (DATA.filters?.approaches || []).map((value) => ({ value, label: value })));
   fillSingle(dom.flowFilter, DATA.filters?.flow_types || pointTypes, "Todos");
   selectValues(dom.parameterFilter, ["hierro_soluble"]);
+  dom.componentFilter.value = "Industrial";
+  dom.mediumFilter.value = "Agua superficial";
+  dom.waterBodyFilter.value = "Río Paraguay";
+  const rioPoints = pointCatalog.filter((row) => row.water_body === "Río Paraguay").map(pointId);
+  selectValues(dom.pointFilter, rioPoints);
 }
 
 function fillSingle(select, values, allLabel) {
@@ -454,13 +459,17 @@ function renderReading(rows) {
   const uniquePoints = unique(rows.map((row) => rowPointId(row))).length;
   const comparable = rows.filter((row) => row.comparable).length;
   const total = rows.length || 1;
-  const selectedParams = unique(rows.map((row) => row.parameter)).slice(0, 5).join(", ");
-  const bodies = unique(rows.map((row) => row.water_body)).slice(0, 5).join(", ");
+  const selectedParams = unique(rows.map((row) => row.parameter)).slice(0, 3).join(", ");
+  const bodies = unique(rows.map((row) => row.water_body)).slice(0, 3).join(", ");
+  const readableStatus =
+    comparable === 0
+      ? "La selección sirve como referencia, pero todavía no sostiene una comparación estadística."
+      : `${Math.round((comparable / total) * 100)}% de los registros filtrados cumple el criterio de comparabilidad.`;
   const html = [
-    readingCard("Cobertura", `${uniquePoints} puntos y ${unique(rows.map((row) => row.parameter_key)).length} parámetros en el filtro actual.`),
-    readingCard("Comparabilidad", `${Math.round((comparable / total) * 100)}% de los registros filtrados cumple el criterio operativo de comparabilidad.`),
-    readingCard("Parámetros visibles", selectedParams || "Seleccione uno o más parámetros para concentrar la lectura."),
-    readingCard("Cauces / sistemas", bodies || "Sin cauces seleccionados."),
+    readingCard("Cobertura", `${uniquePoints} puntos y ${unique(rows.map((row) => row.parameter_key)).length} parámetros.`),
+    readingCard("Lectura estadística", readableStatus),
+    readingCard("Parámetros principales", selectedParams || "Seleccione un parámetro para concentrar la lectura."),
+    readingCard("Cauce o sistema", bodies || "Sin cauce seleccionado."),
   ].join("");
   document.querySelector("#readingSummary").innerHTML = html;
 }
@@ -484,9 +493,7 @@ function renderEvolutionTable(rows) {
     .filter((row) => row.value !== null && row.value !== undefined)
     .sort((a, b) => Math.abs(b.delta_pct_vs_baseline || 0) - Math.abs(a.delta_pct_vs_baseline || 0))
     .slice(0, 600);
-  renderTable("#evolutionTable", ["Componente", "Medio", "Cauce", "Punto", noteHeader("Tipo", "colorHelp"), "Parámetro", "Periodo", noteHeader("n", "nMetric"), noteHeader("Valor", "valueMetric"), noteHeader("DE", "sdMetric"), noteHeader("Base 2021", "baseline"), noteHeader("Δ 2021", "deltaBase"), noteHeader("Base 2023", "baseline"), noteHeader("Δ 2023", "deltaBase"), noteHeader("Representatividad", "representativeness"), noteHeader("Estado", "status")], sorted.map((row) => [
-    row.component,
-    row.medium,
+  renderTable("#evolutionTable", ["Cauce", "Punto", noteHeader("Tipo", "colorHelp"), "Parámetro", "Periodo", noteHeader("n", "nMetric"), noteHeader("Valor", "valueMetric"), noteHeader("Base 2021", "baseline"), noteHeader("Δ 2021", "deltaBase"), noteHeader("Base 2023", "baseline"), noteHeader("Δ 2023", "deltaBase"), noteHeader("Estado", "status")], sorted.map((row) => [
     row.water_body,
     row.point,
     chip(row.point_type),
@@ -494,25 +501,20 @@ function renderEvolutionTable(rows) {
     periodLabel(row),
     formatCount(row.n),
     formatNumber(row.value),
-    formatNumber(row.sd),
     formatNumber(row.baseline_2021_value),
     formatPercent(row.delta_pct_vs_2021),
     formatNumber(row.baseline_2023_value),
     formatPercent(row.delta_pct_vs_2023),
-    row.representativeness_note || "",
     row.comparable ? "Comparable" : "Referencial",
   ]));
 }
 
 function renderCompatibilityTable() {
   const rows = buildPointCatalog(filteredSeries()).slice(0, 500);
-  renderTable("#pointCompatibilityTable", ["Componente", "Medio", "Cauce", "Punto", noteHeader("Tipo", "colorHelp"), noteHeader("Color", "colorHelp"), "Años", "Parámetros", noteHeader("Registros comparables", "comparable"), noteHeader("Determinación", "status")], rows.map((row) => [
-    row.component,
-    row.medium,
+  renderTable("#pointCompatibilityTable", ["Cauce", "Punto", noteHeader("Tipo", "colorHelp"), "Años", "Parámetros", noteHeader("Registros comparables", "comparable"), noteHeader("Determinación", "status")], rows.map((row) => [
     row.water_body,
     row.point,
     chip(row.point_type),
-    colorLabel(row),
     row.years?.length ? row.years.join(", ") : "Consolidado",
     formatInt(row.parameters_count),
     formatInt(row.comparable_records),
@@ -543,9 +545,7 @@ function renderStatTests() {
 
 function renderDataTable(rows) {
   const visible = rows.slice(0, 700);
-  renderTable("#dataTable", ["Componente", "Medio", "Cauce", "Punto", noteHeader("Tipo", "colorHelp"), "Parámetro", "Periodo", noteHeader("n", "nMetric"), noteHeader("Valor", "valueMetric"), noteHeader("Representatividad", "representativeness"), noteHeader("Fuente", "sourceHelp")], visible.map((row) => [
-    row.component,
-    row.medium,
+  renderTable("#dataTable", ["Cauce", "Punto", noteHeader("Tipo", "colorHelp"), "Parámetro", "Periodo", noteHeader("n", "nMetric"), noteHeader("Valor", "valueMetric"), noteHeader("Fuente", "sourceHelp")], visible.map((row) => [
     row.water_body,
     row.point,
     chip(row.point_type),
@@ -553,7 +553,6 @@ function renderDataTable(rows) {
     periodLabel(row),
     formatCount(row.n),
     formatNumber(row.value),
-    row.representativeness_note || "",
     sourceLabel(row.source),
   ]));
 }
@@ -569,18 +568,14 @@ function renderRioParaguay(rows) {
     <div><strong>${formatInt(unique(rioRows.map((row) => row.parameter_key)).length)}</strong><span>parámetros</span></div>
     <div><strong>${formatInt(unique(rioRows.map((row) => row.point)).length)}</strong><span>puntos del Río Paraguay</span></div>
   `;
-  renderTable("#rioTable", ["Punto", noteHeader("Tipo", "colorHelp"), noteHeader("Color pestaña", "colorHelp"), "Parámetro", "Periodo", noteHeader("n", "nMetric"), noteHeader("Valor", "valueMetric"), noteHeader("DE", "sdMetric"), noteHeader("Enfoques", "approachHelp"), noteHeader("Representatividad", "representativeness"), noteHeader("Fuente", "sourceHelp")], rioRows.slice(0, 700).map((row) => [
+  renderTable("#rioTable", ["Punto", noteHeader("Tipo", "colorHelp"), "Parámetro", "Periodo", noteHeader("n", "nMetric"), noteHeader("Valor", "valueMetric"), noteHeader("Estado", "status")], rioRows.slice(0, 700).map((row) => [
     row.point,
     chip(row.point_type),
-    colorLabel(row),
     row.parameter,
     periodLabel(row),
     formatCount(row.n),
     formatNumber(row.value),
-    formatNumber(row.sd),
-    (row.approaches || []).map(escapeHtml).join("<br>"),
-    row.representativeness_note || "",
-    sourceLabel(row.source),
+    row.comparable ? "Comparable" : "Referencial",
   ]));
 }
 
@@ -784,7 +779,8 @@ function groupForChart(rows, xLabels, normalize) {
         return { xIndex, y, alert: numeric(row.deviation_score) && Math.abs(row.deviation_score) >= limit };
       });
       return { label, points, rawRows };
-    });
+    })
+    .slice(0, 7);
 }
 
 function flaggedRows(rows) {
