@@ -236,3 +236,27 @@
 - Verificacion posterior a GitHub Pages:
   - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/?view=legacy&v=5a269cd-2` respondio 200.
   - La version publicada ya contiene `legacyCumplFigure` y `data-view="legacy"`.
+
+### Redisenio de controles y recuperacion visual del mapeo
+- El usuario indico que la app seguia aburrida y que debia priorizar botones antes que listas desplegables, ademas de recuperar mejor el mapeo y figuras visuales.
+- Se reemplazo la interaccion visible de filtros por botones tipo chips:
+  - Cauce o sistema.
+  - Parametros.
+  - Anios.
+  - Puntos.
+  - Componente, medio, tipo de punto, lectura y entrada/salida en opciones avanzadas.
+  - Filtro de subcuenca en la vista `Primera version`.
+- Los `select` quedan solo como motor interno oculto para conservar la logica existente, pero ya no son la interfaz visible.
+- Se cambio tambien la vista `Ajustar metadatos`: la clasificacion de puntos ahora usa botones por fila en lugar de listas desplegables.
+- Se agrego un panel protagonista `Mapa vivo` en el resumen:
+  - Dibuja una red territorial con Rio Paraguay, arroyos y puntos.
+  - Colorea puntos por Entrada, Medio, Salida, Pozo o sin clasificar.
+  - Incluye modos por botones: Todos, Entrada/salida, Alertas y Comparables.
+  - Agrega tarjetas de lectura territorial: puntos visibles, cauces/sistemas, alertas, comparabilidad y composicion.
+- Se ajusto el comportamiento visual de los chips para que los seleccionados suban automaticamente arriba y no queden escondidos dentro de cajas con scroll.
+- Verificaciones realizadas:
+  - `node --check app\app.js`: sintaxis correcta.
+  - Servidor local `http://127.0.0.1:8790/app/`: respuesta 200.
+  - Captura escritorio: `C:\tmp\monitoreo_agua_botones_mapa_v2.png`.
+  - Captura movil: `C:\tmp\monitoreo_agua_botones_mapa_mobile.png`.
+  - Captura de `Primera version`: `C:\tmp\monitoreo_agua_legacy_botones.png`.

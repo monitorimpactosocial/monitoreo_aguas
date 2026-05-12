@@ -161,6 +161,7 @@ const overrideKey = "paracel-water-overrides-v1";
 
 let overrides = loadOverrides();
 let activeView = "dashboard";
+let mapMode = "all";
 
 const dom = {
   componentFilter: document.querySelector("#componentFilter"),
@@ -236,6 +237,7 @@ init();
 
 function init() {
   populateFilters();
+  buildChoiceControls();
   bindEvents();
   renderGuide();
   const requestedView = new URLSearchParams(window.location.search).get("view") || window.location.hash.replace("#", "");
@@ -267,6 +269,13 @@ function bindEvents() {
   document.querySelector("#downloadOverrides").addEventListener("click", () => downloadJson(overrides, "ajustes_monitoreo_agua.json"));
   document.querySelector("#resetOverrides").addEventListener("click", resetOverrides);
   document.querySelector("#legacyMapFilter")?.addEventListener("change", renderLegacyDashboard);
+  document.querySelectorAll("[data-map-mode]").forEach((button) => {
+    button.addEventListener("click", () => {
+      mapMode = button.dataset.mapMode || "all";
+      document.querySelectorAll("[data-map-mode]").forEach((item) => item.classList.toggle("is-active", item === button));
+      renderLiveMap(filteredSeries());
+    });
+  });
   document.querySelector("#closeNote").addEventListener("click", () => {
     document.querySelector("#notePanel").hidden = true;
   });
@@ -320,6 +329,75 @@ function populateFilters() {
   dom.waterBodyFilter.value = "Río Paraguay";
   const rioPoints = pointCatalog.filter((row) => row.water_body === "Río Paraguay").map(pointId);
   selectValues(dom.pointFilter, rioPoints);
+}
+
+function buildChoiceControls() {
+  [
+    { select: dom.waterBodyFilter, target: "#waterBodyChoices" },
+    { select: dom.parameterFilter, target: "#parameterChoices", clearLabel: "Todos" },
+    { select: dom.yearFilter, target: "#yearChoices", clearLabel: "Todos" },
+    { select: dom.pointFilter, target: "#pointChoices", clearLabel: "Todos" },
+    { select: dom.componentFilter, target: "#componentChoices" },
+    { select: dom.mediumFilter, target: "#mediumChoices" },
+    { select: dom.pointTypeFilter, target: "#pointTypeChoices" },
+    { select: dom.approachFilter, target: "#approachChoices", clearLabel: "Todos" },
+    { select: dom.flowFilter, target: "#flowChoices" },
+    { select: document.querySelector("#legacyMapFilter"), target: "#legacyMapChoices" },
+  ].forEach(renderChoiceControl);
+  syncChoiceControls();
+}
+
+function renderChoiceControl(config) {
+  const select = config.select;
+  const root = document.querySelector(config.target);
+  if (!select || !root) return;
+  const buttons = [];
+  if (select.multiple) {
+    buttons.push(`<button type="button" class="choice-pill" data-choice="${escapeAttr(select.id)}" data-value="">${escapeHtml(config.clearLabel || "Todos")}</button>`);
+  }
+  [...select.options].forEach((option) => {
+    if (select.multiple && !option.value) return;
+    buttons.push(`<button type="button" class="choice-pill" data-choice="${escapeAttr(select.id)}" data-value="${escapeAttr(option.value)}">${escapeHtml(choiceLabel(option.textContent || option.label || option.value))}</button>`);
+  });
+  root.innerHTML = buttons.join("");
+  root.querySelectorAll("[data-choice]").forEach((button) => {
+    button.addEventListener("click", () => activateChoice(button));
+  });
+}
+
+function activateChoice(button) {
+  const select = document.getElementById(button.dataset.choice);
+  if (!select) return;
+  const value = button.dataset.value || "";
+  if (select.multiple) {
+    if (!value) {
+      clearMulti(select);
+    } else {
+      const option = [...select.options].find((item) => item.value === value);
+      if (option) option.selected = !option.selected;
+    }
+  } else {
+    select.value = value;
+  }
+  syncChoiceControls();
+  select.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function syncChoiceControls() {
+  document.querySelectorAll("[data-choice]").forEach((button) => {
+    const select = document.getElementById(button.dataset.choice);
+    if (!select) return;
+    const value = button.dataset.value || "";
+    const selected = select.multiple
+      ? (!value && selectedValues(select).length === 0) || selectedValues(select).includes(value)
+      : select.value === value;
+    button.classList.toggle("is-active", selected);
+    button.setAttribute("aria-pressed", selected ? "true" : "false");
+  });
+}
+
+function choiceLabel(label) {
+  return String(label || "").replace(/^Enfoque \d+\s*·\s*/i, "");
 }
 
 function fillSingle(select, values, allLabel) {
@@ -388,6 +466,7 @@ function renderAll() {
   renderMetrics(rows);
   renderChart(rows);
   renderSummaryFigures(rows);
+  renderLiveMap(rows);
   renderReading(rows);
   renderAlerts(rows);
   if (activeView === "evolution") {
@@ -409,6 +488,7 @@ function renderAll() {
   }
   if (activeView === "legacy") renderLegacyDashboard();
   if (activeView === "edit") renderEditTable();
+  syncChoiceControls();
 }
 
 function renderMetrics(rows) {
@@ -469,6 +549,148 @@ function renderYearFigure(rows) {
       return `<div class="stack-row"><span>${escapeHtml(year)}</span><div class="stack-track"><i class="ok" style="width:${compWidth}%"></i><i class="ref" style="width:${refWidth}%"></i></div><strong>${formatInt(comparable)}/${formatInt(total)}</strong></div>`;
     })
     .join("");
+}
+
+function renderLiveMap(rows) {
+  const root = document.querySelector("#liveMap");
+  const story = document.querySelector("#mapStory");
+  if (!root || !story) return;
+  const points = buildLiveMapPoints(rows);
+  const visible = points.filter((point) => {
+    if (mapMode === "alerts") return point.alerts > 0;
+    if (mapMode === "comparable") return point.comparable_records > 0;
+    if (mapMode === "flow") return ["Entrada", "Medio", "Salida"].includes(point.point_type);
+    return true;
+  });
+  if (!points.length) {
+    root.innerHTML = `<div class="empty-figure">Sin puntos para el filtro actual.</div>`;
+    story.innerHTML = mapStoryCard("Sin cobertura", "Ajuste los botones de filtros para volver a mostrar puntos.");
+    return;
+  }
+
+  const width = 1100;
+  const height = 520;
+  root.innerHTML = `<svg viewBox="0 0 ${width} ${height}" aria-label="Mapa de monitoreo filtrado">
+    <defs>
+      <linearGradient id="riverGradient" x1="0" x2="1">
+        <stop offset="0" stop-color="#8cc6df"></stop>
+        <stop offset="1" stop-color="#2f6fa3"></stop>
+      </linearGradient>
+    </defs>
+    <rect class="live-map-bg" x="1" y="1" width="${width - 2}" height="${height - 2}" rx="18"></rect>
+    <path class="map-land" d="M45 420 C210 370 280 300 430 330 C600 365 700 250 865 288 C990 318 1035 235 1060 195 L1060 490 L45 490 Z"></path>
+    <path class="map-river main" d="M930 42 C865 118 892 171 824 236 C749 307 773 382 710 466"></path>
+    <path class="map-river secondary" d="M118 385 C228 330 286 248 410 265 C520 280 574 206 690 205"></path>
+    <path class="map-river secondary" d="M145 145 C282 178 322 122 456 154 C594 187 617 124 740 145"></path>
+    <text class="map-water-label" x="870" y="64">Río Paraguay</text>
+    <text class="map-water-label" x="185" y="356">red de arroyos</text>
+    ${visible
+      .map((point) => {
+        const fill = point.alerts > 0 && mapMode === "alerts" ? "#c1423b" : flowColor(point.point_type);
+        const radius = Math.min(18, 8 + Math.sqrt(point.records));
+        const pulse = point.alerts > 0 ? " alert" : "";
+        const label = `${point.point} | ${point.water_body} | ${point.point_type || "Sin clasificar"} | ${formatInt(point.records)} registros`;
+        return `<g class="live-point${pulse}">
+          <circle cx="${point.x}" cy="${point.y}" r="${radius}" fill="${escapeAttr(fill)}"><title>${escapeHtml(label)}</title></circle>
+          <text x="${point.x + radius + 7}" y="${point.y + 4}">${escapeHtml(point.point)}</text>
+        </g>`;
+      })
+      .join("")}
+  </svg>`;
+
+  const alertPoints = points.filter((point) => point.alerts > 0).length;
+  const comparablePoints = points.filter((point) => point.comparable_records > 0).length;
+  const bodies = unique(points.map((point) => point.water_body)).length;
+  const flowSummary = countBy(points, (point) => point.point_type || "Sin clasificar").slice(0, 4);
+  story.innerHTML = [
+    mapStoryCard("Puntos visibles", `${visible.length} de ${points.length} dentro del filtro actual.`),
+    mapStoryCard("Cauces/sistemas", `${bodies} sistemas representados en el mapa.`),
+    mapStoryCard("Alertas territoriales", alertPoints ? `${alertPoints} punto(s) con desvíos a revisar.` : "Sin puntos con alerta en el filtro."),
+    mapStoryCard("Comparabilidad", `${Math.round((comparablePoints / Math.max(1, points.length)) * 100)}% de los puntos tiene registros comparables.`),
+    `<div class="map-story-card flow-card"><strong>Composición</strong>${flowSummary.map((item) => `<span><i style="background:${escapeAttr(flowColor(item.label))}"></i>${escapeHtml(item.label)} · ${formatInt(item.value)}</span>`).join("")}</div>`,
+  ].join("");
+}
+
+function buildLiveMapPoints(rows) {
+  const limit = Number(dom.deviationLimit.value);
+  const map = new Map();
+  rows.forEach((row) => {
+    const id = rowPointId(row);
+    if (!map.has(id)) {
+      map.set(id, {
+        id,
+        component: row.component,
+        medium: row.medium,
+        water_body: row.water_body,
+        point: row.point,
+        point_type: row.point_type,
+        records: 0,
+        alerts: 0,
+        comparable_records: 0,
+        parameters: new Set(),
+        years: new Set(),
+      });
+    }
+    const item = map.get(id);
+    item.records += 1;
+    if (row.comparable) item.comparable_records += 1;
+    if (numeric(row.deviation_score) && Math.abs(row.deviation_score) >= limit) item.alerts += 1;
+    if (row.parameter_key) item.parameters.add(row.parameter_key);
+    if (row.year) item.years.add(row.year);
+  });
+  const points = [...map.values()].sort((a, b) => `${a.water_body}|${a.point}`.localeCompare(`${b.water_body}|${b.point}`, "es"));
+  return points.map((point, index) => ({ ...point, ...livePointPosition(point, index, points) }));
+}
+
+function livePointPosition(point, index, points) {
+  const legacy = legacyPoints.find((item) => normalizeCode(item.id) === normalizeCode(point.point));
+  if (legacy) {
+    const lngs = legacyPoints.map((item) => item.lng);
+    const lats = legacyPoints.map((item) => item.lat);
+    const minLng = Math.min(...lngs);
+    const maxLng = Math.max(...lngs);
+    const minLat = Math.min(...lats);
+    const maxLat = Math.max(...lats);
+    return {
+      x: Math.round(80 + ((legacy.lng - minLng) / (maxLng - minLng || 1)) * 640),
+      y: Math.round(65 + (1 - (legacy.lat - minLat) / (maxLat - minLat || 1)) * 360),
+    };
+  }
+  if (point.water_body === "Río Paraguay") {
+    const order = point.point.includes("FW01") ? 0 : point.point.includes("FW02") ? 1 : point.point.includes("FW03") ? 2 : 1;
+    return { x: 905, y: 138 + order * 126 };
+  }
+  if (point.point_type === "Pozo") {
+    const wells = points.filter((item) => item.point_type === "Pozo");
+    const wellIndex = Math.max(0, wells.findIndex((item) => item.id === point.id));
+    return { x: 755 + (wellIndex % 4) * 68, y: 104 + Math.floor(wellIndex / 4) * 58 };
+  }
+  const bodies = unique(points.map((item) => item.water_body));
+  const bodyIndex = Math.max(0, bodies.indexOf(point.water_body));
+  const sameBody = points.filter((item) => item.water_body === point.water_body);
+  const ordinal = Math.max(0, sameBody.findIndex((item) => item.id === point.id));
+  const col = bodyIndex % 4;
+  const row = Math.floor(bodyIndex / 4);
+  return {
+    x: 120 + col * 160 + (ordinal % 3) * 34,
+    y: 108 + row * 118 + Math.floor(ordinal / 3) * 38,
+  };
+}
+
+function mapStoryCard(title, text) {
+  return `<div class="map-story-card"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(text)}</span></div>`;
+}
+
+function normalizeCode(value) {
+  return String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+function flowColor(type) {
+  if (type === "Entrada") return "#c1423b";
+  if (type === "Medio") return "#d8a928";
+  if (type === "Salida") return "#177346";
+  if (type === "Pozo") return "#2f6fa3";
+  return "#6b7280";
 }
 
 function renderChart(rows) {
@@ -802,6 +1024,7 @@ function renderLegacyDashboard() {
   renderLegacyMap(stats.byPunto);
   renderLegacyHistoricalTable(stats.historical);
   renderLegacyLastRecords(stats.latest);
+  syncChoiceControls();
 }
 
 function buildLegacyStats() {
@@ -1125,12 +1348,14 @@ function renderGuide() {
 function renderEditTable() {
   renderTable("#editTable", ["Componente", "Medio", "Cauce", "Punto", "Clasificación", "Años", "Parámetros"], buildPointCatalog(filteredSeries()).map((row) => {
     const id = pointId(row);
-    const select = `<select data-edit-point="${escapeAttr(id)}">${pointTypes.map((type) => `<option value="${escapeAttr(type)}" ${row.point_type === type ? "selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select>`;
-    return [row.component, row.medium, row.water_body, row.point, select, row.years?.join(", ") || "Consolidado", formatInt(row.parameters_count)];
+    const buttons = pointTypes
+      .map((type) => `<button type="button" class="edit-type ${row.point_type === type ? "is-active" : ""}" data-edit-point="${escapeAttr(id)}" data-edit-value="${escapeAttr(type)}">${escapeHtml(type)}</button>`)
+      .join("");
+    return [row.component, row.medium, row.water_body, row.point, `<div class="edit-type-group">${buttons}</div>`, row.years?.join(", ") || "Consolidado", formatInt(row.parameters_count)];
   }));
-  document.querySelectorAll("[data-edit-point]").forEach((select) => {
-    select.addEventListener("change", () => {
-      overrides.points[select.dataset.editPoint] = { point_type: select.value };
+  document.querySelectorAll("[data-edit-point][data-edit-value]").forEach((button) => {
+    button.addEventListener("click", () => {
+      overrides.points[button.dataset.editPoint] = { point_type: button.dataset.editValue };
       saveOverrides();
       location.reload();
     });

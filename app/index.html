@@ -44,19 +44,23 @@
         <div class="primary-filters">
           <label>
             <span>Cauce o sistema <button class="info" data-note="waterBodyFilterNote">(i)</button></span>
-            <select id="waterBodyFilter"></select>
+            <div id="waterBodyChoices" class="choice-board compact" aria-label="Elegir cauce o sistema"></div>
+            <select id="waterBodyFilter" class="native-select"></select>
           </label>
           <label>
             <span>Parámetros <button class="info" data-note="parameterFilterNote">(i)</button></span>
-            <select id="parameterFilter" multiple size="4"></select>
+            <div id="parameterChoices" class="choice-board scroll" aria-label="Elegir parámetros"></div>
+            <select id="parameterFilter" class="native-select" multiple size="4"></select>
           </label>
           <label>
             <span>Años <button class="info" data-note="yearFilterNote">(i)</button></span>
-            <select id="yearFilter" multiple size="4"></select>
+            <div id="yearChoices" class="choice-board mini" aria-label="Elegir años"></div>
+            <select id="yearFilter" class="native-select" multiple size="4"></select>
           </label>
           <label>
             <span>Puntos <button class="info" data-note="pointFilterNote">(i)</button></span>
-            <select id="pointFilter" multiple size="4"></select>
+            <div id="pointChoices" class="choice-board scroll" aria-label="Elegir puntos"></div>
+            <select id="pointFilter" class="native-select" multiple size="4"></select>
           </label>
         </div>
 
@@ -76,23 +80,28 @@
           <div class="advanced-grid">
             <label>
               <span>Componente <button class="info" data-note="componentFilterNote">(i)</button></span>
-              <select id="componentFilter"></select>
+              <div id="componentChoices" class="choice-board mini" aria-label="Elegir componente"></div>
+              <select id="componentFilter" class="native-select"></select>
             </label>
             <label>
               <span>Medio <button class="info" data-note="mediumFilterNote">(i)</button></span>
-              <select id="mediumFilter"></select>
+              <div id="mediumChoices" class="choice-board mini" aria-label="Elegir medio"></div>
+              <select id="mediumFilter" class="native-select"></select>
             </label>
             <label>
               <span>Tipo de punto <button class="info" data-note="pointTypeFilterNote">(i)</button></span>
-              <select id="pointTypeFilter"></select>
+              <div id="pointTypeChoices" class="choice-board mini" aria-label="Elegir tipo de punto"></div>
+              <select id="pointTypeFilter" class="native-select"></select>
             </label>
             <label>
               <span>Lectura <button class="info" data-note="approachFilterNote">(i)</button></span>
-              <select id="approachFilter" multiple size="3"></select>
+              <div id="approachChoices" class="choice-board mini" aria-label="Elegir enfoque de análisis"></div>
+              <select id="approachFilter" class="native-select" multiple size="3"></select>
             </label>
             <label>
               <span>Entrada / salida <button class="info" data-note="flowFilterNote">(i)</button></span>
-              <select id="flowFilter"></select>
+              <div id="flowChoices" class="choice-board mini" aria-label="Elegir entrada o salida"></div>
+              <select id="flowFilter" class="native-select"></select>
             </label>
             <label>
               <span>Alerta por desvío <button class="info" data-note="deviationLimitNote">(i)</button></span>
@@ -149,6 +158,26 @@
               <small>revisar con trazabilidad</small>
             </article>
           </div>
+
+          <section class="panel map-panel">
+            <div class="panel-head">
+              <div>
+                <span class="eyebrow">Mapa vivo</span>
+                <h1>Lectura territorial del monitoreo</h1>
+                <p>Los puntos se dibujan como una red de cauces, pozos y entradas/salidas. Use los botones para cambiar el foco sin perder el filtro general.</p>
+              </div>
+              <div class="map-modes" aria-label="Modo del mapa">
+                <button class="is-active" data-map-mode="all">Todos</button>
+                <button data-map-mode="flow">Entrada / salida</button>
+                <button data-map-mode="alerts">Alertas</button>
+                <button data-map-mode="comparable">Comparables</button>
+              </div>
+            </div>
+            <div class="live-map-layout">
+              <div id="liveMap" class="live-map" role="img" aria-label="Mapa vivo de puntos filtrados"></div>
+              <div id="mapStory" class="map-story"></div>
+            </div>
+          </section>
 
           <section class="panel chart-panel">
             <div class="panel-head">
@@ -373,7 +402,8 @@
                   <h1>Mapa de puntos de monitoreo</h1>
                   <p>Reconstrucción estática del mapa inicial con colores por cumplimiento.</p>
                 </div>
-                <select id="legacyMapFilter" aria-label="Filtrar mapa legado">
+                <div id="legacyMapChoices" class="choice-board mini legacy-map-choice" aria-label="Filtrar mapa legado"></div>
+                <select id="legacyMapFilter" class="native-select" aria-label="Filtrar mapa legado">
                   <option value="all">Todos los puntos</option>
                   <option value="Negla">Negla</option>
                   <option value="Napegue">Napegue</option>
