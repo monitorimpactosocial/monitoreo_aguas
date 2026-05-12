@@ -264,3 +264,24 @@
 - Verificacion posterior a GitHub Pages:
   - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/?v=6d91d83-2` respondio 200.
   - La version publicada ya contiene `liveMap` y `parameterChoices`.
+
+### Compactacion de botones y mapa GIS real
+- El usuario solicito botones mas pequenios, mas ordenados en filas/columnas y uso de mapa real desde `C:\Users\DiegoMeza\OneDrive - PARACEL S.A\Archivos de Jose Nicolas Duarte - GIS PARACEL (NICO)`.
+- Se reviso la carpeta GIS indicada. La imagen `Mapas\Accesos al SITE.png` aparecio listada, pero Windows devolvio `El proveedor de archivos de nube no se esta ejecutando (os error 362)`, por lo que no pudo copiarse ni abrirse en esta pasada.
+- Se usaron capas GIS locales legibles de `Shape PARACEL`:
+  - `ComponentesPARACEL.shp`.
+  - `Distritos_Paracel3.shp`.
+  - `BarLoc2022_Amambay.shp`.
+  - `ComunidadesParacel_Limites.shp`.
+- Se genero el nuevo asset liviano `app\gis_map.js` con 126 entidades simplificadas y 24 puntos georreferenciados de monitoreo, manteniendo la app rapida para GitHub Pages.
+- El mapa vivo del resumen ahora usa base cartografica real PARACEL en coordenadas `WGS_1984_UTM_Zone_21S`, con puntos del monitoreo superpuestos.
+- Se compacto la UI de filtros:
+  - Botones en matriz por filas y columnas.
+  - Menor altura, menor tipografia y truncado ordenado.
+  - Los `select` siguen ocultos como motor tecnico, no como interfaz visible.
+- Verificaciones realizadas:
+  - `node --check app\app.js`: correcto.
+  - `node --check app\gis_map.js`: correcto.
+  - Servidor local `http://127.0.0.1:8791/app/`: respuesta 200.
+  - Captura escritorio: `C:\tmp\monitoreo_agua_gis_compacto.png`.
+  - Captura movil: `C:\tmp\monitoreo_agua_gis_compacto_mobile.png`.

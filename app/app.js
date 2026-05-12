@@ -1,4 +1,5 @@
 const DATA = window.MONITORING_DATA || {};
+const GIS_MAP = window.PARACEL_GIS_MAP || null;
 
 const notes = {
   filters: {
@@ -568,6 +569,11 @@ function renderLiveMap(rows) {
     return;
   }
 
+  if (GIS_MAP?.features?.length) {
+    renderRealGisMap(root, story, points, visible);
+    return;
+  }
+
   const width = 1100;
   const height = 520;
   root.innerHTML = `<svg viewBox="0 0 ${width} ${height}" aria-label="Mapa de monitoreo filtrado">
@@ -609,6 +615,99 @@ function renderLiveMap(rows) {
     mapStoryCard("Comparabilidad", `${Math.round((comparablePoints / Math.max(1, points.length)) * 100)}% de los puntos tiene registros comparables.`),
     `<div class="map-story-card flow-card"><strong>Composición</strong>${flowSummary.map((item) => `<span><i style="background:${escapeAttr(flowColor(item.label))}"></i>${escapeHtml(item.label)} · ${formatInt(item.value)}</span>`).join("")}</div>`,
   ].join("");
+}
+
+function renderRealGisMap(root, story, points, visible) {
+  const width = 1100;
+  const height = 560;
+  const margin = 26;
+  const bbox = GIS_MAP.bbox;
+  const minX = bbox[0];
+  const minY = bbox[1];
+  const maxX = bbox[2];
+  const maxY = bbox[3];
+  const xScale = (value) => margin + ((value - minX) / (maxX - minX || 1)) * (width - margin * 2);
+  const yScale = (value) => margin + (1 - (value - minY) / (maxY - minY || 1)) * (height - margin * 2);
+  const project = (point) => [xScale(point[0]), yScale(point[1])];
+  const featureOrder = { districts: 1, localities_amambay: 2, communities: 3, components: 4 };
+  const features = [...GIS_MAP.features].sort((a, b) => (featureOrder[a.layer] || 9) - (featureOrder[b.layer] || 9));
+  const labels = features
+    .filter((feature) => feature.layer === "components")
+    .map((feature) => {
+      const [x, y] = project(feature.center);
+      return `<text class="gis-component-label" x="${x}" y="${y}">${escapeHtml(feature.code || feature.label)}</text>`;
+    })
+    .join("");
+  root.innerHTML = `<svg viewBox="0 0 ${width} ${height}" aria-label="Mapa GIS PARACEL">
+    <rect class="gis-bg" x="1" y="1" width="${width - 2}" height="${height - 2}" rx="18"></rect>
+    ${features.map((feature) => `<path class="gis-feature gis-${escapeAttr(feature.layer)}" d="${featurePath(feature, project)}"><title>${escapeHtml(featureLayerLabel(feature.layer))}: ${escapeHtml(feature.label)}</title></path>`).join("")}
+    ${labels}
+    ${visible
+      .map((point, index) => {
+        const pos = realPointPosition(point, index, points);
+        const [px, py] = project([pos.x, pos.y]);
+        const fill = point.alerts > 0 && mapMode === "alerts" ? "#c1423b" : flowColor(point.point_type);
+        const radius = Math.min(16, 7 + Math.sqrt(point.records));
+        const pulse = point.alerts > 0 ? " alert" : "";
+        const label = `${point.point} | ${point.water_body} | ${point.point_type || "Sin clasificar"} | ${formatInt(point.records)} registros`;
+        return `<g class="live-point real${pulse}">
+          <circle cx="${px}" cy="${py}" r="${radius}" fill="${escapeAttr(fill)}"><title>${escapeHtml(label)}</title></circle>
+          <text x="${px + radius + 6}" y="${py + 4}">${escapeHtml(point.point)}</text>
+        </g>`;
+      })
+      .join("")}
+    <text class="gis-source-label" x="${margin}" y="${height - 18}">Base GIS PARACEL · Shape PARACEL · ${formatInt(GIS_MAP.features.length)} entidades simplificadas</text>
+  </svg>`;
+
+  const alertPoints = points.filter((point) => point.alerts > 0).length;
+  const comparablePoints = points.filter((point) => point.comparable_records > 0).length;
+  const bodies = unique(points.map((point) => point.water_body)).length;
+  const flowSummary = countBy(points, (point) => point.point_type || "Sin clasificar").slice(0, 4);
+  story.innerHTML = [
+    mapStoryCard("Base GIS real", "Capa simplificada desde Shape PARACEL y puntos georreferenciados del monitoreo."),
+    mapStoryCard("Puntos visibles", `${visible.length} de ${points.length} dentro del filtro actual.`),
+    mapStoryCard("Cauces/sistemas", `${bodies} sistemas representados en el mapa.`),
+    mapStoryCard("Alertas territoriales", alertPoints ? `${alertPoints} punto(s) con desvíos a revisar.` : "Sin puntos con alerta en el filtro."),
+    mapStoryCard("Comparabilidad", `${Math.round((comparablePoints / Math.max(1, points.length)) * 100)}% de los puntos tiene registros comparables.`),
+    `<div class="map-story-card flow-card"><strong>Composición</strong>${flowSummary.map((item) => `<span><i style="background:${escapeAttr(flowColor(item.label))}"></i>${escapeHtml(item.label)} · ${formatInt(item.value)}</span>`).join("")}</div>`,
+  ].join("");
+}
+
+function featurePath(feature, project) {
+  return feature.rings
+    .map((ring) =>
+      ring
+        .map((coord, index) => {
+          const [x, y] = project(coord);
+          return `${index === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
+        })
+        .join(" ") + " Z",
+    )
+    .join(" ");
+}
+
+function realPointPosition(point, index, points) {
+  const direct = GIS_MAP.monitoring_points?.[normalizeCode(point.point)];
+  if (direct) return direct;
+  const suffix = String(point.point || "").split("-").pop()?.toUpperCase();
+  const component = GIS_MAP.features?.find((feature) => feature.layer === "components" && String(feature.code || "").toUpperCase() === suffix);
+  if (component?.center) {
+    const sameSuffix = points.filter((item) => String(item.point || "").toUpperCase().endsWith(`-${suffix}`));
+    const ordinal = Math.max(0, sameSuffix.findIndex((item) => item.id === point.id));
+    return { x: component.center[0] + (ordinal % 3 - 1) * 1800, y: component.center[1] + Math.floor(ordinal / 3) * 1800 };
+  }
+  const bbox = GIS_MAP.bbox;
+  const col = index % 6;
+  const row = Math.floor(index / 6);
+  return { x: bbox[0] + (bbox[2] - bbox[0]) * (0.12 + col * 0.13), y: bbox[3] - (bbox[3] - bbox[1]) * (0.16 + row * 0.11) };
+}
+
+function featureLayerLabel(layer) {
+  if (layer === "districts") return "Distrito";
+  if (layer === "localities_amambay") return "Localidad";
+  if (layer === "communities") return "Comunidad";
+  if (layer === "components") return "Componente PARACEL";
+  return "Capa GIS";
 }
 
 function buildLiveMapPoints(rows) {
