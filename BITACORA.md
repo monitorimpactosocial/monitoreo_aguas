@@ -285,3 +285,7 @@
   - Servidor local `http://127.0.0.1:8791/app/`: respuesta 200.
   - Captura escritorio: `C:\tmp\monitoreo_agua_gis_compacto.png`.
   - Captura movil: `C:\tmp\monitoreo_agua_gis_compacto_mobile.png`.
+- Commit funcional publicado: `2c03a70`.
+- Verificacion posterior a GitHub Pages:
+  - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/?v=2c03a70-2` respondio 200 y ya contiene `gis_map.js`.
+  - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/gis_map.js?v=2c03a70-2` respondio 200 y contiene `PARACEL_GIS_MAP`.
