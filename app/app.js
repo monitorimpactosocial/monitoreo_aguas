@@ -332,15 +332,26 @@ function renderAll() {
   const rows = filteredSeries();
   renderMetrics(rows);
   renderChart(rows);
+  renderSummaryFigures(rows);
   renderReading(rows);
   renderAlerts(rows);
-  if (activeView === "evolution") renderEvolutionTable(rows);
-  if (activeView === "rio") renderRioParaguay(rows);
+  if (activeView === "evolution") {
+    renderEvolutionTable(rows);
+    renderEvolutionDetailTable(rows);
+  }
+  if (activeView === "rio") {
+    renderRioParaguay(rows);
+    renderRioDetailTable(rows);
+  }
   if (activeView === "compatibility") {
     renderCompatibilityTable();
+    renderCompatibilityDetailTable();
     renderStatTests();
   }
-  if (activeView === "data") renderDataTable(rows);
+  if (activeView === "data") {
+    renderDataTable(rows);
+    renderDataDetailTable(rows);
+  }
   if (activeView === "edit") renderEditTable();
 }
 
@@ -351,6 +362,57 @@ function renderMetrics(rows) {
   setText("#metricPoints", formatInt(unique(rows.map((row) => rowPointId(row))).length));
   setText("#metricParams", formatInt(unique(rows.map((row) => row.parameter_key)).length));
   setText("#metricAlerts", formatInt(alerts.length));
+}
+
+function renderSummaryFigures(rows) {
+  renderBarFigure(
+    "#pointTypeFigure",
+    countBy(rows, (row) => row.point_type || "Sin clasificar").slice(0, 8),
+    "serie(s)",
+  );
+  renderYearFigure(rows);
+  renderBarFigure(
+    "#parameterFigure",
+    countBy(rows, (row) => row.parameter || "Sin parametro").slice(0, 8),
+    "registro(s)",
+  );
+}
+
+function renderBarFigure(selector, items, suffix) {
+  const root = document.querySelector(selector);
+  if (!root) return;
+  if (!items.length) {
+    root.innerHTML = `<div class="empty-figure">Sin datos para el filtro actual.</div>`;
+    return;
+  }
+  const max = Math.max(...items.map((item) => item.value), 1);
+  root.innerHTML = items
+    .map((item) => {
+      const width = Math.max(4, Math.round((item.value / max) * 100));
+      return `<div class="bar-row"><span>${escapeHtml(item.label)}</span><div class="bar-track"><i style="width:${width}%"></i></div><strong>${formatInt(item.value)}</strong><small>${suffix}</small></div>`;
+    })
+    .join("");
+}
+
+function renderYearFigure(rows) {
+  const root = document.querySelector("#yearFigure");
+  if (!root) return;
+  const years = unique(rows.map((row) => row.year).filter((year) => Number.isFinite(Number(year))));
+  if (!years.length) {
+    root.innerHTML = `<div class="empty-figure">Sin anios comparables para el filtro actual.</div>`;
+    return;
+  }
+  root.innerHTML = years
+    .map((year) => {
+      const yearRows = rows.filter((row) => Number(row.year) === Number(year));
+      const comparable = yearRows.filter((row) => row.comparable).length;
+      const referential = Math.max(0, yearRows.length - comparable);
+      const total = Math.max(1, yearRows.length);
+      const compWidth = Math.round((comparable / total) * 100);
+      const refWidth = 100 - compWidth;
+      return `<div class="stack-row"><span>${escapeHtml(year)}</span><div class="stack-track"><i class="ok" style="width:${compWidth}%"></i><i class="ref" style="width:${refWidth}%"></i></div><strong>${formatInt(comparable)}/${formatInt(total)}</strong></div>`;
+    })
+    .join("");
 }
 
 function renderChart(rows) {
@@ -509,6 +571,31 @@ function renderEvolutionTable(rows) {
   ]));
 }
 
+function renderEvolutionDetailTable(rows) {
+  const sorted = [...rows]
+    .filter((row) => row.value !== null && row.value !== undefined)
+    .sort((a, b) => Math.abs(b.delta_pct_vs_baseline || 0) - Math.abs(a.delta_pct_vs_baseline || 0))
+    .slice(0, 700);
+  renderTable("#evolutionDetailTable", ["Componente", "Medio", "Cauce", "Punto", noteHeader("Tipo", "colorHelp"), "Parametro", "Periodo", noteHeader("n", "nMetric"), noteHeader("Valor", "valueMetric"), noteHeader("DE", "sdMetric"), noteHeader("Base 2021", "baseline"), noteHeader("Delta 2021", "deltaBase"), noteHeader("Base 2023", "baseline"), noteHeader("Delta 2023", "deltaBase"), noteHeader("Representatividad", "representativeness"), noteHeader("Estado", "status")], sorted.map((row) => [
+    row.component,
+    row.medium,
+    row.water_body,
+    row.point,
+    chip(row.point_type),
+    row.parameter,
+    periodLabel(row),
+    formatCount(row.n),
+    formatNumber(row.value),
+    formatNumber(row.sd),
+    formatNumber(row.baseline_2021_value),
+    formatPercent(row.delta_pct_vs_2021),
+    formatNumber(row.baseline_2023_value),
+    formatPercent(row.delta_pct_vs_2023),
+    row.representativeness_note || "",
+    row.comparable ? "Comparable" : "Referencial",
+  ]));
+}
+
 function renderCompatibilityTable() {
   const rows = buildPointCatalog(filteredSeries()).slice(0, 500);
   renderTable("#pointCompatibilityTable", ["Cauce", "Punto", noteHeader("Tipo", "colorHelp"), "Años", "Parámetros", noteHeader("Registros comparables", "comparable"), noteHeader("Determinación", "status")], rows.map((row) => [
@@ -519,6 +606,22 @@ function renderCompatibilityTable() {
     formatInt(row.parameters_count),
     formatInt(row.comparable_records),
     row.comparable ? "Usable para comparación" : "Solo referencial",
+  ]));
+}
+
+function renderCompatibilityDetailTable() {
+  const rows = buildPointCatalog(filteredSeries()).slice(0, 700);
+  renderTable("#pointCompatibilityDetailTable", ["Componente", "Medio", "Cauce", "Punto", noteHeader("Tipo", "colorHelp"), noteHeader("Color", "colorHelp"), "Anios", "Parametros", noteHeader("Registros comparables", "comparable"), noteHeader("Determinacion", "status")], rows.map((row) => [
+    row.component,
+    row.medium,
+    row.water_body,
+    row.point,
+    chip(row.point_type),
+    colorLabel(row),
+    row.years?.length ? row.years.join(", ") : "Consolidado",
+    formatInt(row.parameters_count),
+    formatInt(row.comparable_records),
+    row.comparable ? "Usable para comparacion" : "Solo referencial",
   ]));
 }
 
@@ -557,6 +660,24 @@ function renderDataTable(rows) {
   ]));
 }
 
+function renderDataDetailTable(rows) {
+  const visible = rows.slice(0, 900);
+  renderTable("#dataDetailTable", ["Componente", "Medio", "Cauce", "Punto", noteHeader("Tipo", "colorHelp"), "Parametro", "Periodo", noteHeader("n", "nMetric"), noteHeader("Valor", "valueMetric"), noteHeader("DE", "sdMetric"), noteHeader("Representatividad", "representativeness"), noteHeader("Fuente", "sourceHelp")], visible.map((row) => [
+    row.component,
+    row.medium,
+    row.water_body,
+    row.point,
+    chip(row.point_type),
+    row.parameter,
+    periodLabel(row),
+    formatCount(row.n),
+    formatNumber(row.value),
+    formatNumber(row.sd),
+    row.representativeness_note || "",
+    sourceLabel(row.source),
+  ]));
+}
+
 function renderRioParaguay(rows) {
   const rioRows = rows.filter((row) => row.water_body === "Río Paraguay");
   const sources = DATA.rio_paraguay_sources || [];
@@ -576,6 +697,23 @@ function renderRioParaguay(rows) {
     formatCount(row.n),
     formatNumber(row.value),
     row.comparable ? "Comparable" : "Referencial",
+  ]));
+}
+
+function renderRioDetailTable(rows) {
+  const rioRows = rows.filter((row) => row.water_body === "Río Paraguay");
+  renderTable("#rioDetailTable", ["Punto", noteHeader("Tipo", "colorHelp"), noteHeader("Color pestana", "colorHelp"), "Parametro", "Periodo", noteHeader("n", "nMetric"), noteHeader("Valor", "valueMetric"), noteHeader("DE", "sdMetric"), noteHeader("Enfoques", "approachHelp"), noteHeader("Representatividad", "representativeness"), noteHeader("Fuente", "sourceHelp")], rioRows.slice(0, 900).map((row) => [
+    row.point,
+    chip(row.point_type),
+    colorLabel(row),
+    row.parameter,
+    periodLabel(row),
+    formatCount(row.n),
+    formatNumber(row.value),
+    formatNumber(row.sd),
+    (row.approaches || []).map(escapeHtml).join("<br>"),
+    row.representativeness_note || "",
+    sourceLabel(row.source),
   ]));
 }
 
@@ -780,7 +918,7 @@ function groupForChart(rows, xLabels, normalize) {
       });
       return { label, points, rawRows };
     })
-    .slice(0, 7);
+    .slice(0, 10);
 }
 
 function flaggedRows(rows) {
@@ -937,6 +1075,17 @@ function clearMulti(select) {
 
 function unique(values) {
   return [...new Set(values.filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "es"));
+}
+
+function countBy(rows, getter) {
+  const counts = new Map();
+  rows.forEach((row) => {
+    const label = getter(row);
+    counts.set(label, (counts.get(label) || 0) + 1);
+  });
+  return [...counts.entries()]
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => b.value - a.value || String(a.label).localeCompare(String(b.label), "es"));
 }
 
 function numeric(value) {

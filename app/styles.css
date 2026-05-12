@@ -524,6 +524,96 @@ option {
   gap: 10px;
 }
 
+.figure-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.figure-card {
+  min-height: 210px;
+  padding: 14px;
+  background: var(--wash);
+  border: 1px solid var(--soft-line);
+  border-radius: 6px;
+}
+
+.figure-card h2 {
+  margin: 0 0 12px;
+  color: var(--green-950);
+  font-size: 16px;
+}
+
+.bar-row,
+.stack-row {
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) minmax(90px, 1.2fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-height: 28px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.bar-row small {
+  display: none;
+}
+
+.bar-track,
+.stack-track {
+  display: flex;
+  height: 10px;
+  overflow: hidden;
+  background: #e7eee7;
+  border-radius: 999px;
+}
+
+.bar-track i,
+.stack-track i {
+  display: block;
+  min-width: 2px;
+  height: 100%;
+}
+
+.bar-track i,
+.stack-track .ok {
+  background: var(--green-700);
+}
+
+.stack-track .ref {
+  background: var(--yellow);
+}
+
+.bar-row strong,
+.stack-row strong {
+  color: var(--green-950);
+  font-size: 12px;
+}
+
+.empty-figure {
+  padding: 14px;
+  color: var(--muted);
+  background: #fff;
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+}
+
+.detail-block {
+  margin-top: 14px;
+}
+
+.detail-block.nested {
+  padding-top: 12px;
+  border-top: 1px solid var(--soft-line);
+}
+
+.detail-block summary {
+  margin-bottom: 12px;
+  color: var(--green-950);
+  font-weight: 900;
+  cursor: pointer;
+}
+
 .reading-card,
 .guide-card,
 .edit-note {
@@ -741,6 +831,7 @@ tr:hover td {
   .metric-grid,
   .insight-grid,
   .qa-grid,
+  .figure-grid,
   .guide-grid,
   .source-grid,
   .rio-kpis,

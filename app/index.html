@@ -160,6 +160,29 @@
             <svg id="trendChart" role="img" aria-label="Gráfico de evolución"></svg>
           </section>
 
+          <section class="panel recovered-panel">
+            <div class="panel-head compact-head">
+              <div>
+                <h1>Figuras complementarias</h1>
+                <p>Recupera la lectura visual amplia de la versión anterior, sin cargar de nuevo la pantalla principal.</p>
+              </div>
+            </div>
+            <div class="figure-grid">
+              <article class="figure-card">
+                <h2>Tipos de punto</h2>
+                <div id="pointTypeFigure"></div>
+              </article>
+              <article class="figure-card">
+                <h2>Comparabilidad por año</h2>
+                <div id="yearFigure"></div>
+              </article>
+              <article class="figure-card">
+                <h2>Parámetros más visibles</h2>
+                <div id="parameterFigure"></div>
+              </article>
+            </div>
+          </section>
+
           <div class="insight-grid">
             <section class="panel">
               <div class="panel-head compact-head">
@@ -199,6 +222,12 @@
               <table id="rioTable"></table>
             </div>
           </section>
+          <details class="panel detail-block">
+            <summary>Ver tabla técnica completa recuperada</summary>
+            <div class="table-wrap">
+              <table id="rioDetailTable"></table>
+            </div>
+          </details>
         </section>
 
         <section class="view" id="evolution">
@@ -213,6 +242,12 @@
               <table id="evolutionTable"></table>
             </div>
           </section>
+          <details class="panel detail-block">
+            <summary>Ver matriz técnica completa recuperada</summary>
+            <div class="table-wrap">
+              <table id="evolutionDetailTable"></table>
+            </div>
+          </details>
         </section>
 
         <section class="view" id="compatibility">
@@ -223,6 +258,12 @@
               <div class="table-wrap">
                 <table id="pointCompatibilityTable"></table>
               </div>
+              <details class="detail-block nested">
+                <summary>Ver compatibilidad completa con color y metadatos</summary>
+                <div class="table-wrap">
+                  <table id="pointCompatibilityDetailTable"></table>
+                </div>
+              </details>
             </section>
             <section class="panel">
               <h1>Pruebas estadísticas <button class="info" data-note="statistics">(i)</button></h1>
@@ -245,6 +286,12 @@
             <div class="table-wrap">
               <table id="dataTable"></table>
             </div>
+            <details class="detail-block nested">
+              <summary>Ver trazabilidad completa recuperada</summary>
+              <div class="table-wrap">
+                <table id="dataDetailTable"></table>
+              </div>
+            </details>
           </section>
         </section>
 

@@ -191,3 +191,21 @@
 - Observacion: se intento una prueba programatica de consola con `npx -p playwright node`, pero el paquete no quedo resoluble por `require('playwright')` en ese modo. La verificacion visual por CLI de Playwright si funciono usando Chrome instalado.
 - Commit publicado de la simplificacion visual: `bd41452`.
 - Verificacion posterior a GitHub Pages: `https://monitorimpactosocial.github.io/monitoreo_aguas/app/?v=bd41452b` respondio 200 y ya contiene `Que se quiere revisar` y `Opciones avanzadas`.
+
+### Recuperacion de figuras y tablas de la version anterior
+- El usuario indico que las figuras y tablas de la version anterior eran utiles y debian reincorporarse sin perder la edicion limpia.
+- Se mantuvo la primera pantalla simplificada y se agrego una capa de analisis ampliado:
+  - Figuras complementarias en `Resumen`:
+    - Tipos de punto.
+    - Comparabilidad por anio.
+    - Parametros mas visibles.
+  - Tablas tecnicas completas recuperadas como secciones desplegables:
+    - `Rio Paraguay`: tabla completa con color, DE, enfoques, representatividad y fuente.
+    - `Series`: matriz completa con componente, medio, DE, bases 2021/2023, deltas y representatividad.
+    - `Calidad estadistica`: compatibilidad completa con color y metadatos.
+    - `Fuentes`: trazabilidad completa con componente, medio, representatividad y fuente.
+- Se restauro el limite de series del grafico principal a 10, como en la version anterior, manteniendo la lectura inicial focalizada.
+- Verificaciones:
+  - `node --check app\app.js`: sintaxis correcta.
+  - Validacion estatica: IDs y funciones nuevas enlazadas correctamente.
+  - Captura local de escritorio: `C:\tmp\monitoreo_agua_recuperado.png`.
