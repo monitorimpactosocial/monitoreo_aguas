@@ -211,3 +211,24 @@
   - Captura local de escritorio: `C:\tmp\monitoreo_agua_recuperado.png`.
 - Commit publicado: `7944da5`.
 - Verificacion posterior a GitHub Pages: `https://monitorimpactosocial.github.io/monitoreo_aguas/app/?v=7944da5b` respondio 200 y ya contiene `Figuras complementarias` y `tabla tecnica completa`.
+
+### Recuperacion de la primera version original
+- El usuario aclaro que la recuperacion solicitada se referia a la primera version real del repositorio, no a la version inmediatamente anterior.
+- Se identifico como referencia inicial el commit raiz `22802722e70bd5701e4f50367444ff0396c8648f`, que contenia la app original con registro, estadisticas y mapa.
+- Se incorporo una nueva vista `Primera version` en `app\index.html`, separada de la vista moderna para evitar mezclar lecturas.
+- Elementos recuperados y reconstruidos:
+  - `% Cumplimiento por campania`.
+  - `Cumplimiento por subcuenca`.
+  - `Parametros con mayor incumplimiento`.
+  - `Ultimo % cumplimiento por punto`.
+  - Mapa estatico de puntos de monitoreo con filtro por subcuenca.
+  - Tabla de resumen historico de campanias.
+  - Tabla de ultimos registros.
+- La vista usa el dataset legado local `data.json`, verificado con 229 registros, y conserva la serie historica 2021-2025 y los puntos activos de la primera version.
+- Se ajusto la experiencia visual para que esta pestaña no herede los filtros modernos de la app actual, reduciendo ruido y mejorando la lectura ejecutiva.
+- Verificaciones realizadas:
+  - `node --check app\app.js`: sintaxis correcta.
+  - Validacion estatica de IDs, funciones y existencia de `data.json`: correcta.
+  - Servidor local `http://127.0.0.1:8789/app/?view=legacy`: respuesta 200.
+  - Verificacion HTML local: presentes `legacyCumplFigure`, `legacySubFigure`, `legacyParamFigure`, `legacyPointFigure`, `legacyHistoricoTable`, `legacyLastRecords` y `legacyMap`.
+- Observacion: en este entorno puntual `require('playwright')` no estuvo disponible dentro del repo, por lo que la captura automatizada no se pudo regenerar en esta pasada; la validacion funcional se completo por sintaxis, servidor local y presencia de la vista/controles/datasets.

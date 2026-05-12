@@ -22,6 +22,7 @@
         <button class="tab" data-view="evolution">Series</button>
         <button class="tab" data-view="compatibility">Calidad estadística</button>
         <button class="tab" data-view="data">Fuentes</button>
+        <button class="tab" data-view="legacy">Primera versión</button>
       </nav>
     </header>
 
@@ -293,6 +294,130 @@
               </div>
             </details>
           </section>
+        </section>
+
+        <section class="view" id="legacy">
+          <div class="context-card">
+            <span class="eyebrow">Recuperado de la primera versión</span>
+            <h1>Tablero original de cumplimiento</h1>
+            <p>Esta vista recupera las figuras y tablas iniciales del repositorio: campañas 2021-2025, subcuencas, parámetros con incumplimientos, puntos de monitoreo y mapa operativo.</p>
+          </div>
+
+          <div class="metric-grid">
+            <article class="metric">
+              <span>Registros base</span>
+              <strong id="legacyTotal">0</strong>
+              <small>desde data.json</small>
+            </article>
+            <article class="metric">
+              <span>Puntos</span>
+              <strong id="legacyPoints">0</strong>
+              <small>activos/históricos</small>
+            </article>
+            <article class="metric">
+              <span>Cumplimiento</span>
+              <strong id="legacyPct">0%</strong>
+              <small>promedio ponderado</small>
+            </article>
+            <article class="metric">
+              <span>Campañas</span>
+              <strong id="legacyCampaigns">10</strong>
+              <small>2021-2025</small>
+            </article>
+          </div>
+
+          <div class="legacy-grid">
+            <section class="panel legacy-wide">
+              <div class="panel-head compact-head">
+                <div>
+                  <h1>% Cumplimiento por campaña</h1>
+                  <p>Figura original reconstruida desde la serie histórica RS/DS.</p>
+                </div>
+              </div>
+              <div id="legacyCumplFigure" class="legacy-chart"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head compact-head">
+                <div>
+                  <h1>Cumplimiento por subcuenca</h1>
+                  <p>Agregado por DL/FL de los registros legado.</p>
+                </div>
+              </div>
+              <div id="legacySubFigure" class="legacy-chart small"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head compact-head">
+                <div>
+                  <h1>Parámetros con mayor incumplimiento</h1>
+                  <p>Frecuencia contra límites de la primera versión.</p>
+                </div>
+              </div>
+              <div id="legacyParamFigure" class="legacy-chart"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head compact-head">
+                <div>
+                  <h1>Último % cumplimiento por punto</h1>
+                  <p>Ranking de puntos con último valor disponible.</p>
+                </div>
+              </div>
+              <div id="legacyPointFigure" class="legacy-chart"></div>
+            </section>
+
+            <section class="panel legacy-wide">
+              <div class="panel-head compact-head">
+                <div>
+                  <h1>Mapa de puntos de monitoreo</h1>
+                  <p>Reconstrucción estática del mapa inicial con colores por cumplimiento.</p>
+                </div>
+                <select id="legacyMapFilter" aria-label="Filtrar mapa legado">
+                  <option value="all">Todos los puntos</option>
+                  <option value="Negla">Negla</option>
+                  <option value="Napegue">Napegue</option>
+                  <option value="Trementina">Trementina</option>
+                  <option value="Hermosa">Hermosa</option>
+                  <option value="Zapiquem">Zapiquem</option>
+                  <option value="Itasilla">Itasilla</option>
+                  <option value="Pitanohaga">Pitanohaga</option>
+                  <option value="Aquidaban">Aquidaban</option>
+                </select>
+              </div>
+              <div id="legacyMap" class="legacy-map"></div>
+              <div class="legacy-legend">
+                <span><i class="ok"></i>≥85% alto</span>
+                <span><i class="warn"></i>70-84% medio</span>
+                <span><i class="bad"></i>&lt;70% bajo</span>
+                <span><i class="none"></i>sin datos</span>
+              </div>
+            </section>
+
+            <section class="panel legacy-wide">
+              <div class="panel-head compact-head">
+                <div>
+                  <h1>Resumen histórico de campañas</h1>
+                  <p>Tabla original de campañas documentadas.</p>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table id="legacyHistoricoTable"></table>
+              </div>
+            </section>
+
+            <section class="panel legacy-wide">
+              <div class="panel-head compact-head">
+                <div>
+                  <h1>Últimos registros</h1>
+                  <p>Tabla equivalente a la primera pantalla de registro.</p>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table id="legacyLastRecords"></table>
+              </div>
+            </section>
+          </div>
         </section>
 
         <section class="view" id="guide">

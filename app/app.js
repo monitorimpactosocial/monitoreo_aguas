@@ -181,6 +181,56 @@ const series = applyOverrides(DATA.series || []);
 const pointCatalog = buildPointCatalog(series);
 const parameterCatalog = DATA.parameter_catalog || [];
 const tests = DATA.statistical_tests || [];
+const legacyPoints = [
+  { id: "FW 104-ZA", sub: "Negla", lat: -22.34, lng: -56.55 },
+  { id: "FW 190-ST", sub: "Negla", lat: -22.44, lng: -56.62 },
+  { id: "FW 320-ST", sub: "Negla", lat: -22.52, lng: -56.69 },
+  { id: "FW 191-ST", sub: "Napegue", lat: -22.43, lng: -56.49 },
+  { id: "FW 391-ST", sub: "Napegue", lat: -22.52, lng: -56.58 },
+  { id: "FW 102-SL", sub: "Trementina", lat: -22.44, lng: -56.9 },
+  { id: "FW 208-TR", sub: "Trementina", lat: -22.6, lng: -56.86 },
+  { id: "FW 109-MYRZ", sub: "Trementina", lat: -22.69, lng: -56.92 },
+  { id: "FW 113-RC", sub: "Trementina", lat: -22.64, lng: -56.98 },
+  { id: "FW 317-RZ", sub: "Trementina", lat: -22.84, lng: -56.97 },
+  { id: "FW 107-HE", sub: "Hermosa", lat: -22.32, lng: -56.94 },
+  { id: "FW 322-HE", sub: "Hermosa", lat: -22.25, lng: -56.85 },
+  { id: "FW 210-ZM", sub: "Zapiquem", lat: -22.47, lng: -57.07 },
+  { id: "FW 130-SO", sub: "Itasilla", lat: -22.46, lng: -57.11 },
+  { id: "FW 230-VS", sub: "Pitanohaga", lat: -22.6, lng: -57.1 },
+  { id: "FW 318-VS", sub: "Pitanohaga", lat: -22.72, lng: -57.13 },
+  { id: "FW 316-CR", sub: "Aquidaban", lat: -22.98, lng: -57.14 },
+  { id: "FW 321-CR", sub: "Aquidaban", lat: -22.99, lng: -57.12 },
+  { id: "FW 106-DG", sub: "Pitanohaga", lat: -22.8, lng: -57.3 },
+  { id: "FW 326-DG", sub: "Pitanohaga", lat: -22.85, lng: -57.35 },
+];
+const legacyHistorical = [
+  { anio: 2021, temp: "RS", nPuntos: 18, dl: 698, fl: 76, total: 774, pct: 90.18 },
+  { anio: 2021, temp: "DS", nPuntos: 14, dl: 556, fl: 46, total: 602, pct: 92.36 },
+  { anio: 2022, temp: "RS", nPuntos: 12, dl: 462, fl: 54, total: 516, pct: 89.53 },
+  { anio: 2022, temp: "DS", nPuntos: 11, dl: 422, fl: 51, total: 473, pct: 89.22 },
+  { anio: 2023, temp: "RS", nPuntos: 17, dl: 617, fl: 114, total: 731, pct: 84.4 },
+  { anio: 2023, temp: "DS", nPuntos: 19, dl: 749, fl: 68, total: 817, pct: 91.68 },
+  { anio: 2024, temp: "RS", nPuntos: 16, dl: 171, fl: 53, total: 224, pct: 76.34 },
+  { anio: 2024, temp: "DS", nPuntos: 16, dl: 168, fl: 88, total: 256, pct: 65.63 },
+  { anio: 2025, temp: "RS", nPuntos: 20, dl: 242, fl: 98, total: 340, pct: 71.18 },
+  { anio: 2025, temp: "DS", nPuntos: 20, dl: 258, fl: 62, total: 320, pct: 80.63 },
+];
+const legacyParamLimits = {
+  pH: [6, 9],
+  OD: [5, null],
+  Turbidez: [null, 100],
+  DBO5: [null, 5],
+  Fosforo_Total: [null, 0.05],
+  Nitrogeno_Total: [null, 0.6],
+  Nitratos: [null, 10],
+  Amoniaco: [null, 0.02],
+  Nitritos: [null, 1],
+  Aluminio: [null, 0.2],
+  Hierro_Soluble: [null, 0.3],
+  Coliformes_Fecales: [null, 1000],
+};
+let legacyRecords = [];
+let legacyLoaded = false;
 
 init();
 
@@ -188,7 +238,10 @@ function init() {
   populateFilters();
   bindEvents();
   renderGuide();
-  renderAll();
+  const requestedView = new URLSearchParams(window.location.search).get("view") || window.location.hash.replace("#", "");
+  if (requestedView && document.getElementById(requestedView)) setView(requestedView);
+  else renderAll();
+  loadLegacyData();
 }
 
 function bindEvents() {
@@ -213,6 +266,7 @@ function bindEvents() {
   document.querySelector("#exportDatasetJson").addEventListener("click", () => downloadJson(filteredSeries(), "monitoreo_agua_vista.json"));
   document.querySelector("#downloadOverrides").addEventListener("click", () => downloadJson(overrides, "ajustes_monitoreo_agua.json"));
   document.querySelector("#resetOverrides").addEventListener("click", resetOverrides);
+  document.querySelector("#legacyMapFilter")?.addEventListener("change", renderLegacyDashboard);
   document.querySelector("#closeNote").addEventListener("click", () => {
     document.querySelector("#notePanel").hidden = true;
   });
@@ -329,6 +383,7 @@ function filteredTests() {
 }
 
 function renderAll() {
+  document.body.dataset.view = activeView;
   const rows = filteredSeries();
   renderMetrics(rows);
   renderChart(rows);
@@ -352,6 +407,7 @@ function renderAll() {
     renderDataTable(rows);
     renderDataDetailTable(rows);
   }
+  if (activeView === "legacy") renderLegacyDashboard();
   if (activeView === "edit") renderEditTable();
 }
 
@@ -715,6 +771,254 @@ function renderRioDetailTable(rows) {
     row.representativeness_note || "",
     sourceLabel(row.source),
   ]));
+}
+
+function loadLegacyData() {
+  fetch("../data.json", { cache: "no-store" })
+    .then((response) => (response.ok ? response.json() : []))
+    .then((payload) => {
+      legacyRecords = Array.isArray(payload) ? payload : [];
+      legacyLoaded = true;
+      renderLegacyDashboard();
+    })
+    .catch(() => {
+      legacyRecords = [];
+      legacyLoaded = true;
+      renderLegacyDashboard();
+    });
+}
+
+function renderLegacyDashboard() {
+  if (!document.querySelector("#legacyTotal")) return;
+  const stats = buildLegacyStats();
+  setText("#legacyTotal", legacyLoaded ? formatInt(stats.totalRecords) : "...");
+  setText("#legacyPoints", formatInt(stats.totalPoints));
+  setText("#legacyPct", numeric(stats.globalPct) ? `${formatFixed(stats.globalPct, 1)}%` : "s/d");
+  setText("#legacyCampaigns", formatInt(legacyHistorical.length));
+  renderLegacyTimeline(stats.historical);
+  renderLegacyBars("#legacySubFigure", stats.bySub.slice(0, 10), "sub", "pct", "%", true);
+  renderLegacyBars("#legacyParamFigure", stats.paramIncumpl.slice(0, 10), "param", "n", "inc.");
+  renderLegacyBars("#legacyPointFigure", stats.byPunto.filter((row) => numeric(row.lastPct)).slice(0, 18), "punto", "lastPct", "%", true);
+  renderLegacyMap(stats.byPunto);
+  renderLegacyHistoricalTable(stats.historical);
+  renderLegacyLastRecords(stats.latest);
+}
+
+function buildLegacyStats() {
+  const weighted = legacyRecords.reduce(
+    (acc, row) => {
+      const dl = legacyNumber(row.DL);
+      const fl = legacyNumber(row.FL);
+      if (numeric(dl) && numeric(fl) && dl + fl > 0) {
+        acc.dl += dl;
+        acc.total += dl + fl;
+      }
+      return acc;
+    },
+    { dl: 0, total: 0 },
+  );
+  const historicalWeighted = legacyHistorical.reduce(
+    (acc, row) => ({ dl: acc.dl + row.dl, total: acc.total + row.total }),
+    { dl: 0, total: 0 },
+  );
+  const globalPct = weighted.total ? (weighted.dl / weighted.total) * 100 : (historicalWeighted.dl / historicalWeighted.total) * 100;
+
+  const bySub = new Map();
+  legacyRecords.forEach((row) => {
+    const sub = legacyValue(row, "Subcuenca") || "N/D";
+    const dl = legacyNumber(row.DL);
+    const fl = legacyNumber(row.FL);
+    if (!numeric(dl) || !numeric(fl) || dl + fl <= 0) return;
+    const item = bySub.get(sub) || { sub, dl: 0, fl: 0 };
+    item.dl += dl;
+    item.fl += fl;
+    bySub.set(sub, item);
+  });
+
+  const byPunto = new Map();
+  legacyPoints.forEach((point) => byPunto.set(point.id, { punto: point.id, sub: point.sub, lat: point.lat, lng: point.lng, count: 0, lastPct: null, lastYear: null }));
+  legacyRecords.forEach((row) => {
+    const punto = legacyValue(row, "Punto_ID");
+    if (!punto) return;
+    const current = byPunto.get(punto) || { punto, sub: legacyValue(row, "Subcuenca") || "N/D", count: 0, lastPct: null, lastYear: null };
+    const year = legacyYear(row);
+    const pct = legacyNumber(row.Pct_Cumplimiento);
+    current.count += 1;
+    if (numeric(pct) && (!numeric(current.lastYear) || year >= current.lastYear)) {
+      current.lastPct = pct;
+      current.lastYear = year;
+      current.sub = legacyValue(row, "Subcuenca") || current.sub;
+    }
+    byPunto.set(punto, current);
+  });
+
+  const paramIncumpl = new Map();
+  legacyRecords.forEach((row) => {
+    Object.entries(legacyParamLimits).forEach(([param, limit]) => {
+      const value = legacyNumber(row[param]);
+      if (!numeric(value)) return;
+      const [min, max] = limit;
+      const out = (min !== null && value < min) || (max !== null && value > max);
+      if (out) paramIncumpl.set(param, (paramIncumpl.get(param) || 0) + 1);
+    });
+  });
+
+  const latest = [...legacyRecords]
+    .filter((row) => legacyValue(row, "ID_Muestra"))
+    .sort((a, b) => legacySortKey(b) - legacySortKey(a))
+    .slice(0, 16);
+
+  return {
+    totalRecords: legacyRecords.length,
+    totalPoints: unique([...legacyPoints.map((point) => point.id), ...legacyRecords.map((row) => legacyValue(row, "Punto_ID"))]).length,
+    globalPct,
+    historical: legacyHistorical,
+    bySub: [...bySub.values()]
+      .map((row) => ({ ...row, pct: row.dl + row.fl > 0 ? (row.dl / (row.dl + row.fl)) * 100 : null }))
+      .sort((a, b) => (b.pct || 0) - (a.pct || 0)),
+    byPunto: [...byPunto.values()].sort((a, b) => (b.lastPct || -1) - (a.lastPct || -1)),
+    paramIncumpl: [...paramIncumpl.entries()]
+      .map(([param, n]) => ({ param: legacyParamLabel(param), n }))
+      .sort((a, b) => b.n - a.n),
+    latest,
+  };
+}
+
+function renderLegacyTimeline(rows) {
+  const root = document.querySelector("#legacyCumplFigure");
+  if (!root) return;
+  root.innerHTML = `<div class="legacy-campaign-grid">${rows
+    .map((row) => {
+      const width = Math.max(4, Math.round(row.pct));
+      return `<div class="legacy-campaign ${legacyPctClass(row.pct)}"><span>${row.anio} ${escapeHtml(row.temp)}</span><div class="bar-track"><i style="width:${width}%"></i></div><strong>${formatNumber(row.pct)}%</strong><small>${formatInt(row.dl)} DL / ${formatInt(row.fl)} FL</small></div>`;
+    })
+    .join("")}</div>`;
+}
+
+function renderLegacyBars(selector, rows, labelKey, valueKey, suffix, percentScale = false) {
+  const root = document.querySelector(selector);
+  if (!root) return;
+  if (!rows.length) {
+    root.innerHTML = `<div class="empty-figure">Sin datos de la primera version para esta figura.</div>`;
+    return;
+  }
+  const max = percentScale ? 100 : Math.max(...rows.map((row) => Number(row[valueKey]) || 0), 1);
+  root.innerHTML = rows
+    .map((row) => {
+      const value = Number(row[valueKey]) || 0;
+      const width = Math.max(3, Math.min(100, Math.round((value / max) * 100)));
+      const shownValue = percentScale ? `${formatFixed(value, 1)}%` : formatNumber(value);
+      return `<div class="bar-row legacy-bar"><span>${escapeHtml(row[labelKey])}</span><div class="bar-track ${legacyPctClass(value)}"><i style="width:${width}%"></i></div><strong>${shownValue}</strong><small>${percentScale ? "" : escapeHtml(suffix)}</small></div>`;
+    })
+    .join("");
+}
+
+function renderLegacyMap(pointRows) {
+  const root = document.querySelector("#legacyMap");
+  if (!root) return;
+  const filter = document.querySelector("#legacyMapFilter")?.value || "all";
+  const points = legacyPoints
+    .map((point) => ({ ...point, ...(pointRows.find((row) => row.punto === point.id) || {}) }))
+    .filter((point) => filter === "all" || point.sub === filter);
+  if (!points.length) {
+    root.innerHTML = `<div class="empty-figure">Sin puntos para el filtro seleccionado.</div>`;
+    return;
+  }
+  const width = 980;
+  const height = 440;
+  const lngs = legacyPoints.map((point) => point.lng);
+  const lats = legacyPoints.map((point) => point.lat);
+  const minLng = Math.min(...lngs);
+  const maxLng = Math.max(...lngs);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const x = (lng) => 55 + ((lng - minLng) / (maxLng - minLng || 1)) * (width - 110);
+  const y = (lat) => 40 + (1 - (lat - minLat) / (maxLat - minLat || 1)) * (height - 80);
+  root.innerHTML = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Mapa legado de puntos de monitoreo">
+    <rect x="1" y="1" width="${width - 2}" height="${height - 2}" rx="12" class="legacy-map-bg"></rect>
+    ${points
+      .map((point) => {
+        const color = complianceColor(point.lastPct);
+        const label = `${point.id} | ${point.sub} | ${numeric(point.lastPct) ? `${formatNumber(point.lastPct)}%` : "sin datos"}`;
+        return `<g class="legacy-map-point"><circle cx="${x(point.lng)}" cy="${y(point.lat)}" r="9" fill="${color}"><title>${escapeHtml(label)}</title></circle><text x="${x(point.lng) + 12}" y="${y(point.lat) + 4}">${escapeHtml(point.id.replace("FW ", ""))}</text></g>`;
+      })
+      .join("")}
+  </svg>`;
+}
+
+function renderLegacyHistoricalTable(rows) {
+  renderTable("#legacyHistoricoTable", ["Año", "Temporada", "Puntos", "DL", "FL", "Total", "% Cumplimiento"], rows.map((row) => [
+    row.anio,
+    row.temp === "RS" ? "Lluviosa (RS)" : "Seca (DS)",
+    formatInt(row.nPuntos),
+    formatInt(row.dl),
+    formatInt(row.fl),
+    formatInt(row.total),
+    `${formatNumber(row.pct)}%`,
+  ]));
+}
+
+function renderLegacyLastRecords(rows) {
+  renderTable("#legacyLastRecords", ["ID muestra", "Punto", "Subcuenca", "Año", "Temporada", "pH", "OD", "Turbidez", "DL", "FL", "% Cumpl."], rows.map((row) => [
+    legacyValue(row, "ID_Muestra"),
+    legacyValue(row, "Punto_ID"),
+    legacyValue(row, "Subcuenca"),
+    legacyYear(row) || "",
+    legacySeason(row),
+    legacyValue(row, "pH"),
+    legacyValue(row, "OD"),
+    legacyValue(row, "Turbidez"),
+    legacyValue(row, "DL"),
+    legacyValue(row, "FL"),
+    numeric(legacyNumber(row.Pct_Cumplimiento)) ? `${formatNumber(legacyNumber(row.Pct_Cumplimiento))}%` : "",
+  ]));
+}
+
+function legacyValue(row, key) {
+  if (!row) return "";
+  if (row[key] !== undefined && row[key] !== null) return row[key];
+  if (key === "Año") return row["AÃ±o"] ?? row["Anio"] ?? "";
+  return "";
+}
+
+function legacyYear(row) {
+  return Number(legacyValue(row, "Año")) || 0;
+}
+
+function legacySeason(row) {
+  return row.Cod_Temporada || row.Temporada || "";
+}
+
+function legacySortKey(row) {
+  const seasonRank = legacySeason(row) === "DS" || legacySeason(row) === "Seca" ? 2 : 1;
+  return legacyYear(row) * 10 + seasonRank;
+}
+
+function legacyNumber(value) {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  const text = String(value ?? "").trim();
+  if (!text || /^(s\/?d|n\/?a|nd|no detectable|presencia|ausencia)$/i.test(text)) return null;
+  const cleaned = text.replace(",", ".").replace(/[<>]/g, "").replace(/[^\d.-]/g, "");
+  const number = Number(cleaned);
+  return Number.isFinite(number) ? number : null;
+}
+
+function legacyParamLabel(param) {
+  return String(param).replaceAll("_", " ");
+}
+
+function legacyPctClass(value) {
+  if (!numeric(value)) return "none";
+  if (value >= 85) return "ok";
+  if (value >= 70) return "warn";
+  return "bad";
+}
+
+function complianceColor(value) {
+  if (!numeric(value)) return "#6b7280";
+  if (value >= 85) return "#177346";
+  if (value >= 70) return "#d8a928";
+  return "#c1423b";
 }
 
 function renderGuide() {
@@ -1095,6 +1399,11 @@ function numeric(value) {
 function formatNumber(value) {
   if (!numeric(value)) return "";
   return new Intl.NumberFormat("es-PY", { maximumFractionDigits: Math.abs(value) >= 100 ? 1 : 3 }).format(value);
+}
+
+function formatFixed(value, digits = 1) {
+  if (!numeric(value)) return "";
+  return new Intl.NumberFormat("es-PY", { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(value);
 }
 
 function formatP(value) {
