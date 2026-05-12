@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PARACEL | Monitoreo de Agua</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand">
+        <div class="leaf-mark" aria-hidden="true">P</div>
+        <div>
+          <strong>PARACEL</strong>
+          <span>Monitoreo de calidad de agua</span>
+        </div>
+      </div>
+      <nav class="tabs" aria-label="Vistas principales">
+        <button class="tab is-active" data-view="dashboard">Tablero</button>
+        <button class="tab" data-view="rio">Río Paraguay</button>
+        <button class="tab" data-view="evolution">Evolución</button>
+        <button class="tab" data-view="compatibility">Compatibilidad</button>
+        <button class="tab" data-view="data">Datos</button>
+        <button class="tab" data-view="guide">Guía de lectura</button>
+        <button class="tab" data-view="edit">Editar datos</button>
+      </nav>
+    </header>
+
+    <main>
+      <section class="filter-band" aria-label="Filtros del tablero">
+        <div class="filter-title">
+          <span>Filtros</span>
+          <button class="info" data-note="filters">(i)</button>
+        </div>
+        <label>
+          <span>Componente <button class="info" data-note="componentFilterNote">(i)</button></span>
+          <select id="componentFilter"></select>
+        </label>
+        <label>
+          <span>Medio <button class="info" data-note="mediumFilterNote">(i)</button></span>
+          <select id="mediumFilter"></select>
+        </label>
+        <label>
+          <span>Cauce / sistema <button class="info" data-note="waterBodyFilterNote">(i)</button></span>
+          <select id="waterBodyFilter"></select>
+        </label>
+        <label>
+          <span>Tipo de punto <button class="info" data-note="pointTypeFilterNote">(i)</button></span>
+          <select id="pointTypeFilter"></select>
+        </label>
+        <label class="wide">
+          <span>Parámetros <button class="info" data-note="parameterFilterNote">(i)</button></span>
+          <select id="parameterFilter" multiple size="5"></select>
+        </label>
+        <label class="wide">
+          <span>Puntos <button class="info" data-note="pointFilterNote">(i)</button></span>
+          <select id="pointFilter" multiple size="5"></select>
+        </label>
+        <label>
+          <span>Años <button class="info" data-note="yearFilterNote">(i)</button></span>
+          <select id="yearFilter" multiple size="5"></select>
+        </label>
+        <label>
+          <span>Desviación alerta <button class="info" data-note="deviationLimitNote">(i)</button></span>
+          <input id="deviationLimit" type="range" min="1" max="4" step="0.5" value="2" />
+          <span id="deviationLabel">±2 DE</span>
+        </label>
+        <label class="toggle">
+          <input id="comparableOnly" type="checkbox" />
+          Solo comparables
+          <button class="info" data-note="comparable">(i)</button>
+        </label>
+        <div class="filter-actions">
+          <button id="quickIron" class="ghost">Hierro soluble</button>
+          <button id="quickRio" class="ghost">Río Paraguay</button>
+          <button id="clearFilters">Limpiar</button>
+        </div>
+      </section>
+
+      <section id="notePanel" class="note-panel" hidden>
+        <button id="closeNote" aria-label="Cerrar nota">×</button>
+        <strong id="noteTitle"></strong>
+        <p id="noteText"></p>
+      </section>
+
+      <div class="page-grid">
+        <aside class="panel global-side-panel">
+          <h2>Panel lateral <button class="info" data-note="sideFilters">(i)</button></h2>
+          <label>
+            <span>Enfoques <button class="info" data-note="approachFilterNote">(i)</button></span>
+            <select id="approachFilter" multiple size="4"></select>
+          </label>
+          <label>
+            <span>Entrada / Salida <button class="info" data-note="flowFilterNote">(i)</button></span>
+            <select id="flowFilter"></select>
+          </label>
+          <div class="legend">
+            <span><i class="legend-dot entrada"></i>Entrada</span>
+            <span><i class="legend-dot medio"></i>Intermedio</span>
+            <span><i class="legend-dot salida"></i>Salida</span>
+          </div>
+          <div class="side-actions">
+            <button id="sideCampaign" class="ghost">Por campaña</button>
+            <button id="sideTime" class="ghost">En el tiempo</button>
+            <button id="sideProgram" class="ghost">Evolución programa</button>
+          </div>
+        </aside>
+
+        <div class="view-stack">
+          <section class="view is-active" id="dashboard">
+        <div class="hero-grid">
+          <article class="metric">
+            <span>Registros de serie <button class="info" data-note="series">(i)</button></span>
+            <strong id="metricSeries">0</strong>
+            <small id="metricSeriesSub">filtrados</small>
+          </article>
+          <article class="metric">
+            <span>Puntos <button class="info" data-note="points">(i)</button></span>
+            <strong id="metricPoints">0</strong>
+            <small>entrada, medio, salida, pozos y cauces</small>
+          </article>
+          <article class="metric">
+            <span>Parámetros <button class="info" data-note="parameters">(i)</button></span>
+            <strong id="metricParams">0</strong>
+            <small>normalizados desde anexos</small>
+          </article>
+          <article class="metric warning">
+            <span>Alertas <button class="info" data-note="deviation">(i)</button></span>
+            <strong id="metricAlerts">0</strong>
+            <small>por límite de desviación</small>
+          </article>
+        </div>
+
+        <div class="work-grid">
+          <section class="panel chart-panel">
+            <div class="panel-head">
+              <div>
+                <h1>Evolución y desvíos</h1>
+                <p>Valores promedio o medianos según fuente disponible <button class="info" data-note="chart">(i)</button></p>
+              </div>
+              <div id="chartMode" class="badge">modo</div>
+            </div>
+            <svg id="trendChart" role="img" aria-label="Gráfico de evolución"></svg>
+          </section>
+
+          <aside class="panel side-panel">
+            <h2>Lectura rápida <button class="info" data-note="reading">(i)</button></h2>
+            <div id="readingSummary" class="reading-summary"></div>
+            <h2>Desvíos relevantes</h2>
+            <div id="alertList" class="alert-list"></div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="view" id="rio">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h1>Río Paraguay</h1>
+              <p>Vista específica con los libros y hojas asociados <button class="info" data-note="rio">(i)</button></p>
+            </div>
+            <button id="forceRioView">Aplicar filtro Río Paraguay</button>
+          </div>
+          <div id="rioSourceCards" class="source-grid"></div>
+          <div class="rio-kpis" id="rioKpis"></div>
+          <div class="table-wrap">
+            <table id="rioTable"></table>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="evolution">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h1>Matriz de evolución</h1>
+              <p>Permite comparar varios parámetros y puntos en una misma tabla <button class="info" data-note="matrix">(i)</button></p>
+            </div>
+            <button id="exportFilteredCsv">Exportar CSV</button>
+          </div>
+          <div class="table-wrap">
+            <table id="evolutionTable"></table>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="compatibility">
+        <div class="split">
+          <section class="panel">
+            <h1>Compatibilidad de puntos <button class="info" data-note="compatibility">(i)</button></h1>
+            <div class="table-wrap">
+              <table id="pointCompatibilityTable"></table>
+            </div>
+          </section>
+          <section class="panel">
+            <h1>Demostración estadística <button class="info" data-note="statistics">(i)</button></h1>
+            <div id="statSummary" class="stat-summary"></div>
+            <div class="table-wrap compact">
+              <table id="statTestsTable"></table>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="view" id="data">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h1>Datos filtrados y trazabilidad</h1>
+              <p>Cada fila conserva archivo, hoja y fila de origen cuando fue posible <button class="info" data-note="source">(i)</button></p>
+            </div>
+            <button id="exportDatasetJson">Exportar vista JSON</button>
+          </div>
+          <div class="table-wrap">
+            <table id="dataTable"></table>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="guide">
+        <div class="guide-grid" id="guideGrid"></div>
+      </section>
+
+      <section class="view" id="edit">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h1>Edición asistida de metadatos</h1>
+              <p>Permite ajustar clasificaciones de puntos en esta sesión y exportar los cambios <button class="info" data-note="edit">(i)</button></p>
+            </div>
+            <div class="filter-actions">
+              <button id="downloadOverrides">Exportar ajustes</button>
+              <button id="resetOverrides" class="ghost">Restaurar</button>
+            </div>
+          </div>
+          <div class="edit-note">
+            <strong>Fuente editable:</strong>
+            <span>Los datos maestros siguen en los anexos Excel locales y en el Google Sheet. Esta vista evita tocar la fuente y genera un archivo de ajustes para aplicar luego con control.</span>
+          </div>
+          <div class="table-wrap">
+            <table id="editTable"></table>
+          </div>
+        </div>
+      </section>
+        </div>
+      </div>
+    </main>
+
+    <script src="./monitoring_dataset.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>

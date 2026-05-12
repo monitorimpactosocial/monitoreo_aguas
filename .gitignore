@@ -1,0 +1,19 @@
+# Fuentes maestras y respaldos pesados
+Anexos/
+Informe de consultoria/
+*.docx
+*.pdf
+*.gsheet
+
+# Temporales locales
+~$*
+*.tmp
+*.bak
+Thumbs.db
+desktop.ini
+*.code-workspace
+
+# Dependencias/builds si se agregan luego
+node_modules/
+dist/
+build/
