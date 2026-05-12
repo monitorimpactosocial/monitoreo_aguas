@@ -260,3 +260,7 @@
   - Captura escritorio: `C:\tmp\monitoreo_agua_botones_mapa_v2.png`.
   - Captura movil: `C:\tmp\monitoreo_agua_botones_mapa_mobile.png`.
   - Captura de `Primera version`: `C:\tmp\monitoreo_agua_legacy_botones.png`.
+- Commit funcional publicado: `6d91d83`.
+- Verificacion posterior a GitHub Pages:
+  - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/?v=6d91d83-2` respondio 200.
+  - La version publicada ya contiene `liveMap` y `parameterChoices`.
