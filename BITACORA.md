@@ -154,3 +154,9 @@
   - `node --check app\app.js`: sintaxis correcta.
   - Validacion del dataset JSON: Rio Paraguay presente, Entrada roja, Salida verde, Medio amarillo, bases 2021/2023 y fuentes asociadas.
   - Validacion de raiz publica: `index.html` apunta a `app/`.
+
+### Push exitoso
+- Se ejecuto `git push -u origin main`.
+- Resultado: push exitoso al repositorio `https://github.com/monitorimpactosocial/monitoreo_aguas.git`.
+- Commit publicado: `fac81e6`.
+- La URL publica esperada queda: `https://monitorimpactosocial.github.io/monitoreo_aguas/`, con redireccion automatica a la nueva app en `app/`.
