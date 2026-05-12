@@ -639,10 +639,12 @@ function renderRealGisMap(root, story, points, visible) {
       return `<text class="gis-component-label" x="${x}" y="${y}">${escapeHtml(feature.code || feature.label)}</text>`;
     })
     .join("");
+  const waterLabels = buildWaterLabels(features, project, { width, height, margin });
   root.innerHTML = `<svg viewBox="0 0 ${width} ${height}" aria-label="Mapa GIS PARACEL">
     <rect class="gis-bg" x="1" y="1" width="${width - 2}" height="${height - 2}" rx="18"></rect>
-    ${features.map((feature) => `<path class="gis-feature gis-${escapeAttr(feature.layer)} ${feature.layer === "hydrology" && /paraguay/i.test(feature.label) ? "gis-main-river" : ""}" d="${featurePath(feature, project)}"><title>${escapeHtml(featureLayerLabel(feature.layer))}: ${escapeHtml(feature.label)}</title></path>`).join("")}
+    ${features.map((feature) => `<path class="${featureClass(feature)}" d="${featurePath(feature, project)}"><title>${escapeHtml(featureLayerLabel(feature.layer))}: ${escapeHtml(feature.label)}</title></path>`).join("")}
     ${labels}
+    ${waterLabels}
     ${visible
       .map((point, index) => {
         const pos = realPointPosition(point, index, points);
@@ -674,6 +676,49 @@ function renderRealGisMap(root, story, points, visible) {
     mapStoryCard("Comparabilidad", `${Math.round((comparablePoints / Math.max(1, points.length)) * 100)}% de los puntos tiene registros comparables.`),
     `<div class="map-story-card flow-card"><strong>Composición</strong>${flowSummary.map((item) => `<span><i style="background:${escapeAttr(flowColor(item.label))}"></i>${escapeHtml(item.label)} · ${formatInt(item.value)}</span>`).join("")}</div>`,
   ].join("");
+}
+
+function featureClass(feature) {
+  const classes = ["gis-feature", `gis-${feature.layer}`];
+  if (isMainRiver(feature)) classes.push("gis-main-river");
+  if (isStreamFeature(feature)) classes.push("gis-stream");
+  return classes.map(escapeAttr).join(" ");
+}
+
+function isMainRiver(feature) {
+  return feature.layer === "hydrology" && /^r[ií]o\s+paraguay/i.test(String(feature.label || ""));
+}
+
+function isStreamFeature(feature) {
+  return feature.layer === "hydrology" && /arroyo/i.test(String(feature.label || ""));
+}
+
+function buildWaterLabels(features, project, bounds) {
+  const seen = new Set();
+  return features
+    .filter((feature) => feature.layer === "hydrology" && feature.label && (isMainRiver(feature) || isStreamFeature(feature)))
+    .filter((feature) => {
+      const key = normalizeCode(feature.label);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .map((feature) => {
+      const point = featureLabelPoint(feature);
+      if (!point) return "";
+      const projected = project(point);
+      const x = Math.min(bounds.width - 110, Math.max(bounds.margin + 6, projected[0]));
+      const y = Math.min(bounds.height - 30, Math.max(bounds.margin + 16, projected[1]));
+      return `<text class="gis-water-label" x="${x}" y="${y}">${escapeHtml(feature.label)}</text>`;
+    })
+    .join("");
+}
+
+function featureLabelPoint(feature) {
+  if (feature.center) return feature.center;
+  if (!feature.lines?.length) return null;
+  const line = feature.lines.reduce((best, current) => (current.length > best.length ? current : best), feature.lines[0]);
+  return line[Math.floor(line.length / 2)] || line[0] || null;
 }
 
 function mapPointAttrs(point) {
@@ -777,19 +822,36 @@ function featurePath(feature, project) {
     .join(" ");
 }
 
+function stablePointIndex(point) {
+  const id = point.id || pointId(point);
+  const index = pointCatalog.findIndex((item) => pointId(item) === id);
+  return index >= 0 ? index : Math.abs(hashString(id));
+}
+
+function stablePointOrdinal(point, predicate) {
+  const id = point.id || pointId(point);
+  const group = pointCatalog.filter(predicate);
+  const index = group.findIndex((item) => pointId(item) === id);
+  return index >= 0 ? index : stablePointIndex(point);
+}
+
+function hashString(value) {
+  return String(value || "").split("").reduce((acc, char) => ((acc << 5) - acc + char.charCodeAt(0)) | 0, 0);
+}
+
 function realPointPosition(point, index, points) {
   const direct = GIS_MAP.monitoring_points?.[normalizeCode(point.point)];
   if (direct) return direct;
   const suffix = String(point.point || "").split("-").pop()?.toUpperCase();
   const component = GIS_MAP.features?.find((feature) => feature.layer === "components" && String(feature.code || "").toUpperCase() === suffix);
   if (component?.center) {
-    const sameSuffix = points.filter((item) => String(item.point || "").toUpperCase().endsWith(`-${suffix}`));
-    const ordinal = Math.max(0, sameSuffix.findIndex((item) => item.id === point.id));
+    const ordinal = stablePointOrdinal(point, (item) => String(item.point || "").toUpperCase().endsWith(`-${suffix}`));
     return { x: component.center[0] + (ordinal % 3 - 1) * 1800, y: component.center[1] + Math.floor(ordinal / 3) * 1800 };
   }
   const bbox = GIS_MAP.bbox;
-  const col = index % 6;
-  const row = Math.floor(index / 6);
+  const stableIndex = stablePointIndex(point);
+  const col = stableIndex % 6;
+  const row = Math.floor(stableIndex / 6);
   return { x: bbox[0] + (bbox[2] - bbox[0]) * (0.12 + col * 0.13), y: bbox[3] - (bbox[3] - bbox[1]) * (0.16 + row * 0.11) };
 }
 
@@ -798,6 +860,7 @@ function featureLayerLabel(layer) {
   if (layer === "localities_amambay") return "Localidad";
   if (layer === "communities") return "Comunidad";
   if (layer === "components") return "Componente PARACEL";
+  if (layer === "hydrology") return "Curso de agua";
   return "Capa GIS";
 }
 
@@ -851,14 +914,12 @@ function livePointPosition(point, index, points) {
     return { x: 905, y: 138 + order * 126 };
   }
   if (point.point_type === "Pozo") {
-    const wells = points.filter((item) => item.point_type === "Pozo");
-    const wellIndex = Math.max(0, wells.findIndex((item) => item.id === point.id));
+    const wellIndex = stablePointOrdinal(point, (item) => item.point_type === "Pozo");
     return { x: 755 + (wellIndex % 4) * 68, y: 104 + Math.floor(wellIndex / 4) * 58 };
   }
-  const bodies = unique(points.map((item) => item.water_body));
+  const bodies = unique(pointCatalog.map((item) => item.water_body));
   const bodyIndex = Math.max(0, bodies.indexOf(point.water_body));
-  const sameBody = points.filter((item) => item.water_body === point.water_body);
-  const ordinal = Math.max(0, sameBody.findIndex((item) => item.id === point.id));
+  const ordinal = stablePointOrdinal(point, (item) => item.water_body === point.water_body);
   const col = bodyIndex % 4;
   const row = Math.floor(bodyIndex / 4);
   return {
@@ -884,7 +945,12 @@ function flowColor(type) {
 }
 
 function renderChart(rows) {
-  const svg = document.querySelector("#trendChart");
+  drawTrendChart(document.querySelector("#trendChart"), document.querySelector("#chartMode"), rows);
+  drawTrendChart(document.querySelector("#seriesTrendChart"), document.querySelector("#seriesChartMode"), rows);
+}
+
+function drawTrendChart(svg, modeLabel, rows) {
+  if (!svg) return;
   const chartRows = rows.filter((row) => numeric(row.value));
   svg.innerHTML = "";
   const width = 1000;
@@ -894,13 +960,13 @@ function renderChart(rows) {
 
   if (!chartRows.length) {
     svg.append(textEl(width / 2, height / 2, "No hay valores numéricos para el filtro actual", "chart-title", "middle"));
-    document.querySelector("#chartMode").textContent = "sin datos";
+    if (modeLabel) modeLabel.textContent = "sin datos";
     return;
   }
 
   const parameterCount = unique(chartRows.map((row) => row.parameter_key)).length;
   const normalize = parameterCount > 1;
-  document.querySelector("#chartMode").textContent = normalize ? "base 100 por serie" : "valores reales";
+  if (modeLabel) modeLabel.textContent = normalize ? "base 100 por serie" : "valores reales";
 
   const xLabels = buildXLabels(chartRows);
   const grouped = groupForChart(chartRows, xLabels, normalize).slice(0, 10);

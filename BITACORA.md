@@ -334,3 +334,28 @@
   - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/?v=476e431` respondio 200.
   - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/app.js?v=476e431-2` respondio 200.
   - El asset publicado ya contiene `map-hover-card` y `selectPointFromMap`.
+
+### Estabilidad visual, series y arroyos
+- El usuario reporto tres problemas nuevos:
+  - Al seleccionar un punto sobre el mapa, el punto se mudaba de lugar.
+  - Los botones seleccionados reordenaban el resto de la grilla.
+  - En la vista `Series` no se dibujaba ninguna serie.
+  - Tambien solicito agregar arroyos al mapa.
+- Correcciones aplicadas:
+  - Se elimino el `order: -1` de los botones activos, por lo que las grillas de filtros quedan quietas al seleccionar o deseleccionar opciones.
+  - Se estabilizo la ubicacion de puntos con un indice global del catalogo de puntos, no dependiente del subconjunto filtrado. Esto evita que un punto cambie de posicion luego de hacer clic.
+  - Se agrego una figura propia en la vista `Series`, usando el mismo motor de evolucion filtrada que ya funcionaba en el resumen.
+  - Se diferencio la hidrografia: `Rio Paraguay` queda como rio principal y `Arroyo Paraguay` queda como curso menor con estilo punteado y etiqueta visible.
+- Verificaciones realizadas:
+  - `node --check app\app.js`: correcto.
+  - `node --check app\gis_map.js`: correcto.
+  - `git diff --check`: sin errores.
+  - Servidor local `http://127.0.0.1:8794/app/`: respuesta 200.
+  - Prueba Playwright local:
+    - El orden de los primeros botones de parametros fue identico antes y despues de seleccionar `Aluminio`.
+    - El punto `Arroyos forestales consolidado` mantuvo las mismas coordenadas antes y despues del clic.
+    - La vista `Series` dibujo 2 lineas y 6 puntos para el filtro probado.
+    - El mapa contiene 1 curso `gis-stream` y etiquetas `Rio Paraguay` y `Arroyo Paraguay`.
+  - Capturas QA:
+    - `C:\tmp\monitoreo_agua_series_arroyos_estable.png`.
+    - `C:\tmp\monitoreo_agua_mapa_arroyos_estable.png`.
