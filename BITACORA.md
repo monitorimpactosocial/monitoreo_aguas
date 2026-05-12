@@ -329,3 +329,8 @@
   - Servidor local `http://127.0.0.1:8793/app/`: respuesta 200.
   - Prueba Playwright local: hover muestra el bloque emergente y click sobre `FW01-PY` deja seleccionado un unico punto de Rio Paraguay, con 1 punto visible tras el filtro.
   - Captura QA: `C:\tmp\monitoreo_agua_hover_punto.png`.
+- Commit funcional publicado: `476e431`.
+- Verificacion posterior a GitHub Pages:
+  - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/?v=476e431` respondio 200.
+  - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/app.js?v=476e431-2` respondio 200.
+  - El asset publicado ya contiene `map-hover-card` y `selectPointFromMap`.
