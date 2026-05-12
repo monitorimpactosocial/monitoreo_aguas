@@ -289,3 +289,21 @@
 - Verificacion posterior a GitHub Pages:
   - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/?v=2c03a70-2` respondio 200 y ya contiene `gis_map.js`.
   - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/gis_map.js?v=2c03a70-2` respondio 200 y contiene `PARACEL_GIS_MAP`.
+
+### Incorporacion de rios reales desde geodatos
+- El usuario aclaro que los rios tambien podian graficarse y que la capa estaba en `G:\Mi unidad\geodatos\hidrografia`.
+- Se identifico la capa `Hidrografia.shp` con archivos complementarios `Hidrografia.dbf`, `Hidrografia.shx` y `Hidrografia.prj`.
+- La proyeccion de hidrografia es `EPSG:4326`; se transformo a `WGS_1984_UTM_Zone_21S` para coincidir con el mapa PARACEL ya generado.
+- Se filtro la hidrografia al entorno del mapa y se simplifico para publicacion web:
+  - 220 segmentos de rios/cursos de agua incorporados en `app\gis_map.js`.
+  - Rio Paraguay queda destacado con trazo mas grueso.
+  - Los cursos menores quedan como lineas azules suaves bajo las capas PARACEL.
+- Se ajusto `app\app.js` para renderizar capas lineales reales (`lines`) sin cerrarlas como poligonos.
+- Se agrego una tarjeta de lectura `Rios graficados` al panel territorial.
+- Verificaciones realizadas:
+  - `node --check app\app.js`: correcto.
+  - `node --check app\gis_map.js`: correcto.
+  - Validacion del asset: 346 entidades totales, 220 de hidrografia y presencia de `Rio Paraguay`.
+  - Servidor local `http://127.0.0.1:8792/app/`: respuesta 200.
+  - Captura escritorio: `C:\tmp\monitoreo_agua_gis_hidrografia.png`.
+  - Captura movil: `C:\tmp\monitoreo_agua_gis_hidrografia_mobile.png`.

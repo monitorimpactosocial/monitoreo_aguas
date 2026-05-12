@@ -728,6 +728,19 @@ option {
   stroke-width: 1;
 }
 
+.gis-hydrology {
+  fill: none;
+  stroke: rgba(47, 111, 163, 0.42);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.2;
+}
+
+.gis-main-river {
+  stroke: rgba(47, 111, 163, 0.82);
+  stroke-width: 3.2;
+}
+
 .gis-components {
   fill: rgba(23, 115, 70, 0.28);
   stroke: #0f5d35;

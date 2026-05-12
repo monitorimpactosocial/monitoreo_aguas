@@ -629,7 +629,7 @@ function renderRealGisMap(root, story, points, visible) {
   const xScale = (value) => margin + ((value - minX) / (maxX - minX || 1)) * (width - margin * 2);
   const yScale = (value) => margin + (1 - (value - minY) / (maxY - minY || 1)) * (height - margin * 2);
   const project = (point) => [xScale(point[0]), yScale(point[1])];
-  const featureOrder = { districts: 1, localities_amambay: 2, communities: 3, components: 4 };
+  const featureOrder = { districts: 1, localities_amambay: 2, hydrology: 2.5, communities: 3, components: 4 };
   const features = [...GIS_MAP.features].sort((a, b) => (featureOrder[a.layer] || 9) - (featureOrder[b.layer] || 9));
   const labels = features
     .filter((feature) => feature.layer === "components")
@@ -640,7 +640,7 @@ function renderRealGisMap(root, story, points, visible) {
     .join("");
   root.innerHTML = `<svg viewBox="0 0 ${width} ${height}" aria-label="Mapa GIS PARACEL">
     <rect class="gis-bg" x="1" y="1" width="${width - 2}" height="${height - 2}" rx="18"></rect>
-    ${features.map((feature) => `<path class="gis-feature gis-${escapeAttr(feature.layer)}" d="${featurePath(feature, project)}"><title>${escapeHtml(featureLayerLabel(feature.layer))}: ${escapeHtml(feature.label)}</title></path>`).join("")}
+    ${features.map((feature) => `<path class="gis-feature gis-${escapeAttr(feature.layer)} ${feature.layer === "hydrology" && /paraguay/i.test(feature.label) ? "gis-main-river" : ""}" d="${featurePath(feature, project)}"><title>${escapeHtml(featureLayerLabel(feature.layer))}: ${escapeHtml(feature.label)}</title></path>`).join("")}
     ${labels}
     ${visible
       .map((point, index) => {
@@ -656,7 +656,7 @@ function renderRealGisMap(root, story, points, visible) {
         </g>`;
       })
       .join("")}
-    <text class="gis-source-label" x="${margin}" y="${height - 18}">Base GIS PARACEL · Shape PARACEL · ${formatInt(GIS_MAP.features.length)} entidades simplificadas</text>
+    <text class="gis-source-label" x="${margin}" y="${height - 18}">Base GIS PARACEL + hidrografía · ${formatInt(GIS_MAP.features.length)} entidades simplificadas</text>
   </svg>`;
 
   const alertPoints = points.filter((point) => point.alerts > 0).length;
@@ -665,6 +665,7 @@ function renderRealGisMap(root, story, points, visible) {
   const flowSummary = countBy(points, (point) => point.point_type || "Sin clasificar").slice(0, 4);
   story.innerHTML = [
     mapStoryCard("Base GIS real", "Capa simplificada desde Shape PARACEL y puntos georreferenciados del monitoreo."),
+    mapStoryCard("Ríos graficados", `${formatInt(GIS_MAP.hydrology_count || 0)} segmentos desde geodatos/hidrografia.`),
     mapStoryCard("Puntos visibles", `${visible.length} de ${points.length} dentro del filtro actual.`),
     mapStoryCard("Cauces/sistemas", `${bodies} sistemas representados en el mapa.`),
     mapStoryCard("Alertas territoriales", alertPoints ? `${alertPoints} punto(s) con desvíos a revisar.` : "Sin puntos con alerta en el filtro."),
@@ -674,6 +675,18 @@ function renderRealGisMap(root, story, points, visible) {
 }
 
 function featurePath(feature, project) {
+  if (feature.lines) {
+    return feature.lines
+      .map((line) =>
+        line
+          .map((coord, index) => {
+            const [x, y] = project(coord);
+            return `${index === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
+          })
+          .join(" "),
+      )
+      .join(" ");
+  }
   return feature.rings
     .map((ring) =>
       ring
