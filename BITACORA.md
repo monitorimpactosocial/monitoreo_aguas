@@ -189,3 +189,5 @@
     - Escritorio: `C:\tmp\monitoreo_agua_redesign_v2.png`.
     - Movil: `C:\tmp\monitoreo_agua_mobile.png`.
 - Observacion: se intento una prueba programatica de consola con `npx -p playwright node`, pero el paquete no quedo resoluble por `require('playwright')` en ese modo. La verificacion visual por CLI de Playwright si funciono usando Chrome instalado.
+- Commit publicado de la simplificacion visual: `bd41452`.
+- Verificacion posterior a GitHub Pages: `https://monitorimpactosocial.github.io/monitoreo_aguas/app/?v=bd41452b` respondio 200 y ya contiene `Que se quiere revisar` y `Opciones avanzadas`.
