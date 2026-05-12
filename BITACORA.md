@@ -232,3 +232,7 @@
   - Servidor local `http://127.0.0.1:8789/app/?view=legacy`: respuesta 200.
   - Verificacion HTML local: presentes `legacyCumplFigure`, `legacySubFigure`, `legacyParamFigure`, `legacyPointFigure`, `legacyHistoricoTable`, `legacyLastRecords` y `legacyMap`.
 - Observacion: en este entorno puntual `require('playwright')` no estuvo disponible dentro del repo, por lo que la captura automatizada no se pudo regenerar en esta pasada; la validacion funcional se completo por sintaxis, servidor local y presencia de la vista/controles/datasets.
+- Commit funcional publicado: `5a269cd`.
+- Verificacion posterior a GitHub Pages:
+  - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/?view=legacy&v=5a269cd-2` respondio 200.
+  - La version publicada ya contiene `legacyCumplFigure` y `data-view="legacy"`.
