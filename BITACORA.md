@@ -359,3 +359,9 @@
   - Capturas QA:
     - `C:\tmp\monitoreo_agua_series_arroyos_estable.png`.
     - `C:\tmp\monitoreo_agua_mapa_arroyos_estable.png`.
+- Commit funcional publicado: `645f515`.
+- Verificacion posterior a GitHub Pages:
+  - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/?v=645f515` respondio 200.
+  - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/index.html?v=645f515-2` ya contiene `seriesTrendChart`.
+  - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/app.js?v=645f515-2` ya contiene `drawTrendChart` y `stablePointIndex`.
+  - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/styles.css?v=645f515-2` ya contiene `gis-stream`.
