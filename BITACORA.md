@@ -209,3 +209,5 @@
   - `node --check app\app.js`: sintaxis correcta.
   - Validacion estatica: IDs y funciones nuevas enlazadas correctamente.
   - Captura local de escritorio: `C:\tmp\monitoreo_agua_recuperado.png`.
+- Commit publicado: `7944da5`.
+- Verificacion posterior a GitHub Pages: `https://monitorimpactosocial.github.io/monitoreo_aguas/app/?v=7944da5b` respondio 200 y ya contiene `Figuras complementarias` y `tabla tecnica completa`.
