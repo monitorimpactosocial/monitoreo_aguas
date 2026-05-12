@@ -593,16 +593,17 @@ function renderLiveMap(rows) {
     ${visible
       .map((point) => {
         const fill = point.alerts > 0 && mapMode === "alerts" ? "#c1423b" : flowColor(point.point_type);
-        const radius = Math.min(18, 8 + Math.sqrt(point.records));
+        const radius = Math.min(10, 4.5 + Math.sqrt(point.records) * 0.75);
         const pulse = point.alerts > 0 ? " alert" : "";
         const label = `${point.point} | ${point.water_body} | ${point.point_type || "Sin clasificar"} | ${formatInt(point.records)} registros`;
-        return `<g class="live-point${pulse}">
+        return `<g class="live-point${pulse}" ${mapPointAttrs(point)} tabindex="0" role="button" aria-label="Filtrar punto ${escapeAttr(label)}">
           <circle cx="${point.x}" cy="${point.y}" r="${radius}" fill="${escapeAttr(fill)}"><title>${escapeHtml(label)}</title></circle>
-          <text x="${point.x + radius + 7}" y="${point.y + 4}">${escapeHtml(point.point)}</text>
+          <text x="${point.x + radius + 5}" y="${point.y + 3}">${escapeHtml(point.point)}</text>
         </g>`;
       })
       .join("")}
-  </svg>`;
+  </svg><div class="map-hover-card" hidden></div>`;
+  wireMapPointInteractions(root);
 
   const alertPoints = points.filter((point) => point.alerts > 0).length;
   const comparablePoints = points.filter((point) => point.comparable_records > 0).length;
@@ -647,17 +648,18 @@ function renderRealGisMap(root, story, points, visible) {
         const pos = realPointPosition(point, index, points);
         const [px, py] = project([pos.x, pos.y]);
         const fill = point.alerts > 0 && mapMode === "alerts" ? "#c1423b" : flowColor(point.point_type);
-        const radius = Math.min(16, 7 + Math.sqrt(point.records));
+        const radius = Math.min(9, 4.2 + Math.sqrt(point.records) * 0.7);
         const pulse = point.alerts > 0 ? " alert" : "";
         const label = `${point.point} | ${point.water_body} | ${point.point_type || "Sin clasificar"} | ${formatInt(point.records)} registros`;
-        return `<g class="live-point real${pulse}">
+        return `<g class="live-point real${pulse}" ${mapPointAttrs(point)} tabindex="0" role="button" aria-label="Filtrar punto ${escapeAttr(label)}">
           <circle cx="${px}" cy="${py}" r="${radius}" fill="${escapeAttr(fill)}"><title>${escapeHtml(label)}</title></circle>
-          <text x="${px + radius + 6}" y="${py + 4}">${escapeHtml(point.point)}</text>
+          <text x="${px + radius + 5}" y="${py + 3}">${escapeHtml(point.point)}</text>
         </g>`;
       })
       .join("")}
     <text class="gis-source-label" x="${margin}" y="${height - 18}">Base GIS PARACEL + hidrografía · ${formatInt(GIS_MAP.features.length)} entidades simplificadas</text>
-  </svg>`;
+  </svg><div class="map-hover-card" hidden></div>`;
+  wireMapPointInteractions(root);
 
   const alertPoints = points.filter((point) => point.alerts > 0).length;
   const comparablePoints = points.filter((point) => point.comparable_records > 0).length;
@@ -672,6 +674,82 @@ function renderRealGisMap(root, story, points, visible) {
     mapStoryCard("Comparabilidad", `${Math.round((comparablePoints / Math.max(1, points.length)) * 100)}% de los puntos tiene registros comparables.`),
     `<div class="map-story-card flow-card"><strong>Composición</strong>${flowSummary.map((item) => `<span><i style="background:${escapeAttr(flowColor(item.label))}"></i>${escapeHtml(item.label)} · ${formatInt(item.value)}</span>`).join("")}</div>`,
   ].join("");
+}
+
+function mapPointAttrs(point) {
+  return [
+    `data-map-point="${escapeAttr(point.id)}"`,
+    `data-point-name="${escapeAttr(point.point)}"`,
+    `data-point-body="${escapeAttr(point.water_body)}"`,
+    `data-point-type="${escapeAttr(point.point_type || "Sin clasificar")}"`,
+    `data-point-records="${escapeAttr(formatInt(point.records))}"`,
+    `data-point-alerts="${escapeAttr(formatInt(point.alerts))}"`,
+    `data-point-comparable="${escapeAttr(formatInt(point.comparable_records))}"`,
+    `data-point-params="${escapeAttr(formatInt(point.parameters?.size || 0))}"`,
+    `data-point-years="${escapeAttr(Array.from(point.years || []).sort().join(", ") || "s/d")}"`,
+  ].join(" ");
+}
+
+function wireMapPointInteractions(root) {
+  const card = root.querySelector(".map-hover-card");
+  if (!card) return;
+  const show = (event, target) => {
+    card.innerHTML = mapPointInfoHtml(target.dataset);
+    card.hidden = false;
+    moveMapHoverCard(root, card, event);
+  };
+  const hide = () => {
+    card.hidden = true;
+  };
+  root.querySelectorAll(".live-point[data-map-point]").forEach((target) => {
+    target.addEventListener("mouseenter", (event) => show(event, target));
+    target.addEventListener("mousemove", (event) => moveMapHoverCard(root, card, event));
+    target.addEventListener("mouseleave", hide);
+    target.addEventListener("focus", (event) => show(event, target));
+    target.addEventListener("blur", hide);
+    target.addEventListener("click", () => selectPointFromMap(target.dataset.mapPoint));
+    target.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        selectPointFromMap(target.dataset.mapPoint);
+      }
+    });
+  });
+}
+
+function moveMapHoverCard(root, card, event) {
+  const rect = root.getBoundingClientRect();
+  const hasPointer = Number.isFinite(event.clientX) && Number.isFinite(event.clientY);
+  const rawX = hasPointer ? event.clientX - rect.left + 14 : 20;
+  const rawY = hasPointer ? event.clientY - rect.top + 14 : 20;
+  const x = Math.min(rect.width - 260, Math.max(10, rawX));
+  const y = Math.min(rect.height - 150, Math.max(10, rawY));
+  card.style.left = `${x}px`;
+  card.style.top = `${y}px`;
+}
+
+function mapPointInfoHtml(data) {
+  return `<strong>${escapeHtml(data.pointName)}</strong>
+    <span>${escapeHtml(data.pointBody)} · ${escapeHtml(data.pointType)}</span>
+    <dl>
+      <div><dt>Registros</dt><dd>${escapeHtml(data.pointRecords)}</dd></div>
+      <div><dt>Comparables</dt><dd>${escapeHtml(data.pointComparable)}</dd></div>
+      <div><dt>Alertas</dt><dd>${escapeHtml(data.pointAlerts)}</dd></div>
+      <div><dt>Parámetros</dt><dd>${escapeHtml(data.pointParams)}</dd></div>
+    </dl>
+    <small>Años: ${escapeHtml(data.pointYears)} · Click para filtrar todas las vistas</small>`;
+}
+
+function selectPointFromMap(id) {
+  const point = pointCatalog.find((row) => pointId(row) === id);
+  if (!point) return;
+  dom.componentFilter.value = point.component || "";
+  dom.mediumFilter.value = point.medium || "";
+  dom.waterBodyFilter.value = point.water_body || "";
+  clearMulti(dom.pointFilter);
+  selectValues(dom.pointFilter, [id]);
+  syncChoiceControls();
+  renderAll();
 }
 
 function featurePath(feature, project) {

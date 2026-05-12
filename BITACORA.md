@@ -312,3 +312,20 @@
   - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/gis_map.js?v=22ec532-2` respondio 200.
   - El asset publicado ya contiene `hydrology` y `Rio Paraguay`.
   - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/?v=22ec532-2` respondio 200 y carga `gis_map.js`.
+
+### Interaccion fina de puntos del mapa
+- El usuario indico que los puntos se veian demasiado grandes y que debia aparecer un bloque de informacion al pasar el cursor; ademas, al hacer clic sobre un punto, este debia filtrar todas las vistas.
+- Se redujo el radio de los puntos en el mapa sintetico y en el mapa GIS real para que no tapen la base cartografica ni los rios.
+- Se agrego un bloque emergente al pasar el cursor o enfocar por teclado:
+  - Punto, cauce o sistema y tipo de punto.
+  - Registros, comparables, alertas, parametros y anios disponibles.
+  - Indicacion clara de que el clic filtra todas las vistas.
+- Se agrego interaccion por clic y por teclado (`Enter`/`Espacio`) sobre cada punto.
+- El clic selecciona el punto en el filtro global `pointFilter`, sincroniza los botones visibles y ejecuta `renderAll()`, por lo que afecta resumen, mapa, series, Rio Paraguay, compatibilidad, tablas y figuras derivadas del filtro actual.
+- Se corrigio un problema detectado en la prueba real: algunas capas de fondo del GIS interceptaban el cursor. Las capas territoriales, labels y fuente ahora quedan como base visual sin capturar eventos, dejando los puntos realmente clickeables.
+- Verificaciones realizadas:
+  - `node --check app\app.js`: correcto.
+  - `node --check app\gis_map.js`: correcto.
+  - Servidor local `http://127.0.0.1:8793/app/`: respuesta 200.
+  - Prueba Playwright local: hover muestra el bloque emergente y click sobre `FW01-PY` deja seleccionado un unico punto de Rio Paraguay, con 1 punto visible tras el filtro.
+  - Captura QA: `C:\tmp\monitoreo_agua_hover_punto.png`.
