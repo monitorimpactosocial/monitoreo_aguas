@@ -1998,7 +1998,13 @@ function rioPeriodLabel(row) {
 function renderRioGeoStatus() {
   const root = document.querySelector("#rioGeoStatus");
   if (!root) return;
-  root.innerHTML = `<strong>Geolocalización FW</strong><span>El repo no contiene aún el KMZ/KML de puntos FW. Cuando se incorpore, esta pestaña tomará esas coordenadas como fuente principal del mapa.</span>`;
+  const pointSource = GIS_MAP?.monitoring_points_source;
+  if (pointSource?.count) {
+    const kmzCount = Array.isArray(pointSource.kmz) ? pointSource.kmz.length : 0;
+    root.innerHTML = `<strong>Geolocalizaci\u00f3n de puntos</strong><span>Mapa actualizado con ${pointSource.count} puntos y centroides desde ${kmzCount} KMZ, el cat\u00e1logo BD_MONITOREO_AGUAS_PARACEL y coordenadas UTM EPSG:32721.</span>`;
+    return;
+  }
+  root.innerHTML = `<strong>Geolocalizaci\u00f3n de puntos</strong><span>La app queda preparada para tomar KMZ/KML y cat\u00e1logos de puntos como fuente cartogr\u00e1fica principal del mapa.</span>`;
 }
 
 function drawRioMonthlyChart(rows) {

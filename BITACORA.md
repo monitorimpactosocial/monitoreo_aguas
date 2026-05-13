@@ -584,3 +584,31 @@
   - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/app.js?v=1cd3619_retry2` respondio 200 y ya contiene `formatTestStatistic`, `Estadístico` y `W/F/H`.
   - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/monitoring_dataset.js?v=1cd3619_retry2` respondio 200 y ya contiene `Shapiro-Wilk`, `ANOVA`, `Kruskal Wallis coliformes` y `KruskalWallis_PesticidasRioPY`.
   - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/?v=1cd3619_retry2` respondio 200 y ya contiene `statTestsTable` y `Calidad estadística`.
+
+### Correccion de geolocalizacion de puntos del mapa desde KMZ/BD
+- Fecha de trabajo: 2026-05-13 16:53 -03:00.
+- Motivo: el usuario reporto que los puntos del mapa no estaban bien ubicados y pidio corregirlos usando archivos cartograficos de `MONITOREO_AGUAS`.
+- Fuentes incorporadas:
+  - `C:\Users\DiegoMeza\OneDrive - PARACEL S.A\MONITOREO_IMPACTO_SOCIAL_PARACEL\MONITOREO_AGUAS\1 GW FOR 2024 (1).kmz`.
+  - `C:\Users\DiegoMeza\OneDrive - PARACEL S.A\MONITOREO_IMPACTO_SOCIAL_PARACEL\MONITOREO_AGUAS\FW FO 2025..kmz`.
+  - `C:\Users\DiegoMeza\OneDrive - PARACEL S.A\MONITOREO_IMPACTO_SOCIAL_PARACEL\MONITOREO_AGUAS\BD_MONITOREO_AGUAS_PARACEL.xlsx`, hoja `PUNTOS`.
+- Cambios aplicados:
+  - Se agrego el script reproducible `scripts/update_gis_points_from_kmz.py`.
+  - El script lee placemarks KMZ en WGS84, los convierte a UTM zona 21S (`EPSG:32721`) y actualiza `app/gis_map.js`.
+  - Se corrigieron coordenadas reales para pozos forestales GW disponibles en KMZ, entre ellos `GW25-PaloH`, `GW24-BELEN`, `GW17-LP`, `GW16GA`, `GW13-SJ`, `GW12-LAG`, `GW11-MICHEL` y `GW31-VS`.
+  - Se incorporaron puntos FW forestales desde `FW FO 2025..kmz` y desde la hoja `PUNTOS` de la base, preservando aliases como `FW323RZ` y `FW317RZ`.
+  - Se agregaron centroides trazables para puntos consolidados de arroyos/subcuencas, de modo que las vistas agregadas no caigan en posiciones de relleno.
+  - Se corrigio el rotulo/alias de `Rio Paraguay consolidado` para evitar texto corrupto y permitir busqueda por `ROPARAGUAYCONSOLIDADO` y `RIOPARAGUAYCONSOLIDADO`.
+  - La leyenda de geolocalizacion del frontend ahora informa que el mapa usa 48 puntos y centroides desde 2 KMZ, el catalogo `BD_MONITOREO_AGUAS_PARACEL` y `EPSG:32721`.
+- Resultado de regeneracion:
+  - `monitoring_points`: 48.
+  - `kmz_points`: 28.
+  - `freshwater_catalog_points`: 20.
+- Verificaciones realizadas:
+  - `python -m py_compile scripts\update_gis_points_from_kmz.py`: correcto.
+  - `node --check app\app.js`: correcto.
+  - `node --check app\gis_map.js`: correcto.
+  - Parseo directo de `app/gis_map.js`: confirma 48 puntos y coordenadas fuente para `GW25PALOH`, `GW13SJ`, `GW12LAG`, `FW104ZA`, `FW391ST`, `FW316CR`, `ROPARAGUAYCONSOLIDADO` y `RIOPARAGUAYCONSOLIDADO`.
+  - Edge headless sobre `file:///G:/Mi%20unidad/MONITOREO_AGUA/app/index.html?view=rio&qa=gis-kmz`: renderizo `Mapa actualizado con 48 puntos y centroides desde 2 KMZ...`; no se detectaron `Uncaught`, `TypeError` ni `ReferenceError` de la app.
+- Pendiente cartografico:
+  - Esta correccion usa los KMZ/BD entregados para GW/FW forestal y mantiene los puntos industriales/Rio Paraguay segun la base GIS ya disponible. Si aparecen KMZ especificos de GW industrial, Rio Paraguay o canales CH, conviene agregarlos al mismo script para reemplazar cualquier ubicacion remanente de referencia.
