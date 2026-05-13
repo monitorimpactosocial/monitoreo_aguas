@@ -537,3 +537,11 @@
   - `python -m py_compile scripts\build_dashboard_data.py`: correcto.
   - `git diff --check`: sin errores.
   - Edge headless sobre `file:///G:/Mi%20unidad/MONITOREO_AGUA/app/index.html?view=rio&qa=rio-monthly`: renderizo `rioMonthlyTable`, `rioMonthlyChart`, `Río Paraguay mensual`, `Tiametoxam` y los botones `IND/FW · FW01-PY`; no se detectaron `Uncaught`, `TypeError` ni `ReferenceError`.
+- Commit funcional publicado: `868a0e1`.
+- Verificacion posterior a GitHub Pages:
+  - El remoto `origin/main` quedo en `868a0e19e917001e6d4fdaac922fececf08edced`.
+  - Raw GitHub confirmo inmediatamente `rioMonthlyTable`, `rio-filter-panel`, `filteredRioRows`, `drawRioMonthlyChart`, `Río Paraguay mensual`, `Tiametoxam` y `medium_code`.
+  - La primera consulta a Pages devolvio cache anterior; con cache-buster `868a0e1_retry2` Pages respondio 200 con la version nueva.
+  - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/?v=868a0e1_retry2` respondio 200 y ya contiene `rioMonthlyTable`, `rio-filter-panel` y `Notaciones`.
+  - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/app.js?v=868a0e1_retry2` respondio 200 y ya contiene `filteredRioRows`, `drawRioMonthlyChart` y `component_code: row.component_code`.
+  - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/monitoring_dataset.js?v=868a0e1_retry2` respondio 200 y ya contiene `Río Paraguay mensual`, `Tiametoxam` y `medium_code`.
