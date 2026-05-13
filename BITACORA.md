@@ -399,3 +399,10 @@
     - El diagnostico ejecutivo renderiza 4 tarjetas.
     - La seleccion `Arroyos forestales` + `Aluminio` alinea `Forestal` + `Agua superficial`, devuelve 6 series, 1 punto visible y 2 lineas en el grafico.
     - La vista `Series` mantiene 2 lineas y 6 filas para ese filtro.
+- Commit funcional publicado: `2f8686f`.
+- Verificacion posterior a GitHub Pages:
+  - El remoto `origin/main` quedo en `2f8686f08ffee3f988806297d389ca5072e91a5e`.
+  - La primera consulta a Pages devolvio cache anterior; se reintento con cache-buster despues de la propagacion.
+  - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/?v=2f8686f` respondio 200 y ya contiene `activeFilterSummary`, `analystBrief`, `side-filter-block` y `app-shell`.
+  - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/app.js?v=2f8686f` respondio 200 y ya contiene `renderAnalystBrief`, `alignParentsToWaterBody` y `renderFilterSummary`.
+  - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/styles.css?v=2f8686f` respondio 200 y ya contiene `app-shell`, `filter-summary`, `analyst-grid` y `side-map-modes`.
