@@ -610,5 +610,12 @@
   - `node --check app\gis_map.js`: correcto.
   - Parseo directo de `app/gis_map.js`: confirma 48 puntos y coordenadas fuente para `GW25PALOH`, `GW13SJ`, `GW12LAG`, `FW104ZA`, `FW391ST`, `FW316CR`, `ROPARAGUAYCONSOLIDADO` y `RIOPARAGUAYCONSOLIDADO`.
   - Edge headless sobre `file:///G:/Mi%20unidad/MONITOREO_AGUA/app/index.html?view=rio&qa=gis-kmz`: renderizo `Mapa actualizado con 48 puntos y centroides desde 2 KMZ...`; no se detectaron `Uncaught`, `TypeError` ni `ReferenceError` de la app.
+- Commit funcional publicado: `1ad66a5`.
+- Verificacion posterior a GitHub Pages:
+  - El remoto `origin/main` quedo en `1ad66a5ae9f40ba60b609c7e85bde525747ef057`.
+  - Raw GitHub confirmo `Mapa actualizado con ${pointSource.count}`, `monitoring_points_source`, `GW25-Palo Haya` y `"count":48`.
+  - La primera consulta a Pages devolvio cache anterior; con cache-buster `1ad66a5_retry_165631`, `app.js` y `gis_map.js` respondieron 200 con la version nueva.
+  - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/app.js?v=1ad66a5_retry_165631` contiene `Mapa actualizado con ${pointSource.count}` y `monitoring_points_source`.
+  - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/gis_map.js?v=1ad66a5_retry_165631` contiene `monitoring_points_source`, `GW25-Palo Haya` y `"count":48`.
 - Pendiente cartografico:
   - Esta correccion usa los KMZ/BD entregados para GW/FW forestal y mantiene los puntos industriales/Rio Paraguay segun la base GIS ya disponible. Si aparecen KMZ especificos de GW industrial, Rio Paraguay o canales CH, conviene agregarlos al mismo script para reemplazar cualquier ubicacion remanente de referencia.
