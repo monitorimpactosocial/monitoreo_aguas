@@ -617,5 +617,6 @@
   - La primera consulta a Pages devolvio cache anterior; con cache-buster `1ad66a5_retry_165631`, `app.js` y `gis_map.js` respondieron 200 con la version nueva.
   - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/app.js?v=1ad66a5_retry_165631` contiene `Mapa actualizado con ${pointSource.count}` y `monitoring_points_source`.
   - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/gis_map.js?v=1ad66a5_retry_165631` contiene `monitoring_points_source`, `GW25-Palo Haya` y `"count":48`.
+  - Se versionaron los scripts en `app/index.html` con `?v=20260513-kmz` para reducir problemas de cache del navegador al cargar `app.js`, `gis_map.js` y `monitoring_dataset.js`.
 - Pendiente cartografico:
   - Esta correccion usa los KMZ/BD entregados para GW/FW forestal y mantiene los puntos industriales/Rio Paraguay segun la base GIS ya disponible. Si aparecen KMZ especificos de GW industrial, Rio Paraguay o canales CH, conviene agregarlos al mismo script para reemplazar cualquier ubicacion remanente de referencia.
