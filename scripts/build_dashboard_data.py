@@ -42,6 +42,12 @@ POINT_TYPE_META = {
         "sheet_tab_color_label": "azul",
         "point_type_source": "clasificacion operativa: pozo",
     },
+    "Canal": {
+        "point_color": "#4B9C8E",
+        "sheet_tab_color": "#4B9C8E",
+        "sheet_tab_color_label": "turquesa",
+        "point_type_source": "clasificacion operativa: CH=canal de drenaje",
+    },
     "No clasificado": {
         "point_color": None,
         "sheet_tab_color": None,
@@ -54,6 +60,21 @@ POINT_TYPE_META = {
         "sheet_tab_color_label": "sin color local",
         "point_type_source": "pendiente de recuperar color de pestana del Google Sheet",
     },
+}
+
+MONTH_NAMES = {
+    1: "Enero",
+    2: "Febrero",
+    3: "Marzo",
+    4: "Abril",
+    5: "Mayo",
+    6: "Junio",
+    7: "Julio",
+    8: "Agosto",
+    9: "Septiembre",
+    10: "Octubre",
+    11: "Noviembre",
+    12: "Diciembre",
 }
 
 RIO_PARAGUAY_SOURCES = [
@@ -107,6 +128,24 @@ def normalize_label(value: Any) -> str:
     text = clean_text(value)
     text = text.replace("_", " ").replace("&", " y ")
     text = re.sub(r"\s+", " ", text).strip()
+    comparable_key = re.sub(r"[^a-z0-9]+", " ", strip_accents(text).lower()).strip()
+    canonical = {
+        "2 4 d": "2,4-D",
+        "clorofila a": "Clorofila A",
+        "fosforo total": "Fósforo total",
+        "niquel": "Níquel",
+        "demanda biologica de oxigeno": "Demanda biológica de oxígeno",
+        "demanda quimica de oxigeno": "Demanda química de oxígeno",
+        "ortosfato fosfato": "Ortofosfatos",
+        "ortofosfatos": "Ortofosfatos",
+        "conductividad electrica": "Conductividad eléctrica",
+        "solidos disueltos totales": "Sólidos disueltos totales",
+        "oxigeno disuelto": "Oxígeno disuelto",
+        "nitrogeno total": "Nitrógeno total",
+        "amoniaco": "Amoniaco",
+    }
+    if comparable_key in canonical:
+        return canonical[comparable_key]
     replacements = {
         "Potencial de Hidrogeno": "pH",
         "Potencial de Hidrógeno": "pH",
@@ -181,6 +220,19 @@ def to_year(value: Any) -> int | None:
     return None
 
 
+def campaign_meta(value: Any) -> tuple[int | None, int | None, str, str | None]:
+    text = clean_text(value)
+    match = re.search(r"C\s*(\d{1,2})\s*[_-]\s*(20\d{2})", text, re.IGNORECASE)
+    if not match:
+        return None, None, text, None
+    month = int(match.group(1))
+    year = int(match.group(2))
+    if not 1 <= month <= 12:
+        return year, None, text, None
+    month_label = MONTH_NAMES[month]
+    return year, month, f"{year}-{month:02d}", f"{month_label} {year}"
+
+
 def years_from_period(period: Any) -> list[int]:
     text = clean_text(period)
     match = re.search(r"(20\d{2})\s*[-/]\s*(20\d{2})", text)
@@ -202,6 +254,8 @@ def find_file(name: str) -> Path:
 
 def classify_point(point: str, water_body: str = "") -> str:
     normalized = strip_accents(point).upper().replace(" ", "")
+    if normalized.startswith("CH"):
+        return "Canal"
     if normalized in {"FW01-PY", "FW01PY"}:
         return "Entrada"
     if normalized in {"FW02-PY", "FW02PY"}:
@@ -213,6 +267,27 @@ def classify_point(point: str, water_body: str = "") -> str:
     if water_body and strip_accents(water_body).lower() in {"rio paraguay", "río paraguay"}:
         return "Sin clasificar"
     return "No clasificado"
+
+
+def component_code(component: str) -> str:
+    normalized = strip_accents(component).lower()
+    if "industrial" in normalized:
+        return "IND"
+    if "forestal" in normalized:
+        return "FOR"
+    return slug(component).upper()
+
+
+def medium_code(medium: str, point: str = "") -> str:
+    normalized_medium = strip_accents(medium).lower()
+    normalized_point = strip_accents(point).upper().replace(" ", "")
+    if normalized_point.startswith("CH") or "canal" in normalized_medium:
+        return "CH"
+    if "subterr" in normalized_medium or normalized_point.startswith("GW"):
+        return "GW"
+    if "superficial" in normalized_medium or normalized_point.startswith("FW"):
+        return "FW"
+    return slug(medium).upper()
 
 
 def point_type_meta(point_type: str) -> dict[str, Any]:
@@ -271,11 +346,17 @@ def add_record(**kwargs: Any) -> None:
     point = normalize_label(kwargs.get("point", ""))
     parameter = normalize_label(kwargs.get("parameter", ""))
     water_body = normalize_label(kwargs.get("water_body", ""))
+    component = normalize_label(kwargs.get("component", ""))
+    medium = normalize_label(kwargs.get("medium", ""))
+    kwargs["component"] = component
+    kwargs["medium"] = medium
     kwargs["point"] = point
     kwargs["parameter"] = parameter
     kwargs["parameter_key"] = slug(parameter)
     kwargs["water_body"] = water_body
     kwargs["point_type"] = kwargs.get("point_type") or classify_point(point, water_body)
+    kwargs["component_code"] = kwargs.get("component_code") or component_code(component)
+    kwargs["medium_code"] = kwargs.get("medium_code") or medium_code(medium, point)
     kwargs.update({k: kwargs.get(k, v) for k, v in point_type_meta(kwargs["point_type"]).items()})
     raw_records.append(kwargs)
 
@@ -284,13 +365,23 @@ def parse_rio_paraguay_point_summary() -> None:
     path = find_file("REsultados compilados Rio PAraguay_ todos los parametros.xlsx")
     sheet = "Comparación puntos_muestreo"
     df = pd.read_excel(path, sheet_name=sheet, header=0, dtype=object)
+    df.columns = [clean_text(column) for column in df.columns]
+    param_col = next((column for column in df.columns if slug(column) == "parametros"), None)
+    point_col = next((column for column in df.columns if "puntos" in slug(column)), None)
+    n_col = next((column for column in df.columns if slug(column) == "n"), None)
+    mean_col = next((column for column in df.columns if slug(column) == "promedio"), None)
+    sd_col = next((column for column in df.columns if "desviacion" in slug(column)), None)
+    median_col = next((column for column in df.columns if "mediana" in slug(column)), None)
+    if not param_col or not point_col:
+        raise ValueError("No se encontraron columnas de parametros/puntos para Rio Paraguay")
     current_param = ""
     current_category = ""
     for idx, row in df.iterrows():
-        param_cell = normalize_label(row.get("PARÁMETROS", ""))
-        point = clean_text(row.get("Puntos de muestreo", ""))
+        param_cell = normalize_label(row.get(param_col, ""))
+        point = clean_text(row.get(point_col, ""))
         if param_cell and not point.upper().startswith("FW"):
             current_category = param_cell
+            current_param = ""
             continue
         if param_cell:
             current_param = param_cell
@@ -305,15 +396,100 @@ def parse_rio_paraguay_point_summary() -> None:
             year=None,
             period="2019-2023",
             campaign="Consolidado",
-            n=to_number(row.get("N")),
-            mean=to_number(row.get("Promedio")),
-            sd=to_number(row.get("Desviación estándar")),
-            median=to_number(row.get("Medianas")),
+            n=to_number(row.get(n_col)) if n_col else None,
+            mean=to_number(row.get(mean_col)) if mean_col else None,
+            sd=to_number(row.get(sd_col)) if sd_col else None,
+            median=to_number(row.get(median_col)) if median_col else None,
             value=None,
             category=current_category,
             value_kind="summary_by_point",
             source=source_ref(path, sheet, int(idx) + 2),
         )
+
+
+def parse_rio_paraguay_campaign_summary(filename: str, parameter: str) -> None:
+    path = find_file(filename)
+    sheet = pd.ExcelFile(path).sheet_names[0]
+    df = pd.read_excel(path, sheet_name=sheet, dtype=object)
+    campaign_col = next((column for column in df.columns if "campana" in slug(column) or "campaña" in clean_text(column).lower()), df.columns[0])
+    mean_col = next((column for column in df.columns if slug(column) == "medias"), None)
+    n_col = next((column for column in df.columns if slug(column) == "n"), None)
+    se_col = next((column for column in df.columns if slug(column) in {"e_e", "ee"}), None)
+    if not mean_col:
+        return
+    for idx, row in df.iterrows():
+        campaign = clean_text(row.get(campaign_col))
+        year, month, period, period_label = campaign_meta(campaign)
+        if not year or not month:
+            continue
+        add_record(
+            component="Industrial",
+            medium="Agua superficial",
+            water_body="Río Paraguay",
+            point="Río Paraguay mensual",
+            parameter=parameter,
+            year=year,
+            month=month,
+            month_label=period_label,
+            period=period,
+            period_sort=year * 100 + month,
+            campaign=campaign,
+            n=to_number(row.get(n_col)) if n_col else None,
+            mean=to_number(row.get(mean_col)),
+            sd=None,
+            se=to_number(row.get(se_col)) if se_col else None,
+            median=None,
+            value=None,
+            category="Resumen mensual por campaña",
+            value_kind="monthly_campaign_summary",
+            source=source_ref(path, sheet, int(idx) + 2),
+        )
+
+
+def parse_rio_paraguay_pesticides_detected() -> None:
+    path = find_file("Pesticidas detectados.xlsx")
+    sheet = pd.ExcelFile(path).sheet_names[0]
+    df = pd.read_excel(path, sheet_name=sheet, dtype=object)
+    point_col = next((column for column in df.columns if "punto" in slug(column)), None)
+    campaign_col = next((column for column in df.columns if "campana" in slug(column)), None)
+    if not point_col or not campaign_col:
+        return
+    parameter_cols = [
+        column
+        for column in df.columns
+        if not str(column).startswith("Unnamed") and column not in {point_col, campaign_col}
+    ]
+    for idx, row in df.iterrows():
+        point = clean_text(row.get(point_col))
+        campaign = clean_text(row.get(campaign_col))
+        year, month, period, period_label = campaign_meta(campaign)
+        if not point.upper().startswith("FW") or not year or not month:
+            continue
+        for column in parameter_cols:
+            value = to_number(row.get(column))
+            if value is None:
+                continue
+            add_record(
+                component="Industrial",
+                medium="Agua superficial",
+                water_body="Río Paraguay",
+                point=point,
+                parameter=clean_text(column),
+                year=year,
+                month=month,
+                month_label=period_label,
+                period=period,
+                period_sort=year * 100 + month,
+                campaign=campaign,
+                n=1,
+                mean=None,
+                sd=None,
+                median=None,
+                value=value,
+                category="Agroquímicos detectados por campaña",
+                value_kind="raw_monthly",
+                source=source_ref(path, sheet, int(idx) + 2),
+            )
 
 
 def parse_repeated_stat_table(
@@ -540,7 +716,13 @@ def series_from_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
             year,
             period,
         ) = key
-        summary_rows = [row for row in rows if row.get("mean") is not None or row.get("median") is not None]
+        summary_rows = [
+            row
+            for row in rows
+            if row.get("mean") is not None
+            or row.get("median") is not None
+            or (row.get("n") is not None and "summary" in clean_text(row.get("value_kind")).lower())
+        ]
         raw_values = [row.get("value") for row in rows if row.get("value") is not None]
         if summary_rows and not raw_values:
             row = summary_rows[0]
@@ -555,6 +737,13 @@ def series_from_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
             sheet_tab_color = row.get("sheet_tab_color")
             sheet_tab_color_label = row.get("sheet_tab_color_label")
             point_type_source = row.get("point_type_source")
+            component_code_value = row.get("component_code")
+            medium_code_value = row.get("medium_code")
+            campaign = row.get("campaign")
+            month = row.get("month")
+            month_label = row.get("month_label")
+            period_sort = row.get("period_sort")
+            category = row.get("category")
         else:
             count = len(raw_values)
             mean_value = statistics.fmean(raw_values) if raw_values else None
@@ -567,23 +756,37 @@ def series_from_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
             sheet_tab_color = rows[0].get("sheet_tab_color")
             sheet_tab_color_label = rows[0].get("sheet_tab_color_label")
             point_type_source = rows[0].get("point_type_source")
+            component_code_value = rows[0].get("component_code")
+            medium_code_value = rows[0].get("medium_code")
+            campaign = rows[0].get("campaign")
+            month = rows[0].get("month")
+            month_label = rows[0].get("month_label")
+            period_sort = rows[0].get("period_sort")
+            category = rows[0].get("category")
         series.append(
             {
                 "component": component,
+                "component_code": component_code_value,
                 "medium": medium,
+                "medium_code": medium_code_value,
                 "water_body": water_body,
                 "point": point,
                 "point_type": point_type,
                 "parameter": parameter,
                 "parameter_key": parameter_key,
                 "year": year,
+                "month": month,
+                "month_label": month_label,
                 "period": period,
+                "period_sort": period_sort,
+                "campaign": campaign,
                 "n": count,
                 "mean": mean_value,
                 "sd": sd_value,
                 "median": median_value,
                 "value": value,
                 "value_kind": value_kind,
+                "category": category,
                 "point_color": point_color,
                 "sheet_tab_color": sheet_tab_color,
                 "sheet_tab_color_label": sheet_tab_color_label,
@@ -688,7 +891,9 @@ def catalogs(series: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[d
             point_key,
             {
                 "component": row["component"],
+                "component_code": row.get("component_code"),
                 "medium": row["medium"],
+                "medium_code": row.get("medium_code"),
                 "water_body": row["water_body"],
                 "point": row["point"],
                 "point_type": row["point_type"],
@@ -697,6 +902,7 @@ def catalogs(series: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[d
                 "sheet_tab_color_label": row.get("sheet_tab_color_label"),
                 "point_type_source": row.get("point_type_source"),
                 "years": set(),
+                "months": set(),
                 "parameters": set(),
                 "approaches": set(),
                 "comparable_records": 0,
@@ -704,6 +910,8 @@ def catalogs(series: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[d
         )
         if isinstance(row.get("year"), int):
             point["years"].add(row["year"])
+        if isinstance(row.get("month"), int) and isinstance(row.get("year"), int):
+            point["months"].add(f"{row['year']}-{row['month']:02d}")
         point["parameters"].add(row["parameter"])
         point["approaches"].update(row.get("approaches", []))
         if row.get("comparable"):
@@ -725,6 +933,7 @@ def catalogs(series: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[d
                 **{k: v for k, v in point.items() if k not in {"years", "parameters"}},
                 "approaches": sorted(point["approaches"]),
                 "years": sorted(point["years"]),
+                "months": sorted(point["months"]),
                 "parameters_count": len(point["parameters"]),
                 "comparable": point["comparable_records"] > 0,
             }
@@ -780,6 +989,10 @@ def main() -> None:
     DATA_DIR.mkdir(exist_ok=True)
     APP_DIR.mkdir(exist_ok=True)
     parse_rio_paraguay_point_summary()
+    parse_rio_paraguay_campaign_summary("pH Test.Tukey.Alfa.0.05.DMS.0.56075.xlsx", "pH")
+    parse_rio_paraguay_campaign_summary("DBO5 Test.Tukey.Alfa.0.05.DMS.1.36846.xlsx", "DBO5")
+    parse_rio_paraguay_campaign_summary("DQO Test.Tukey.Alfa.0.05.DMS.39.36231.xlsx", "DQO")
+    parse_rio_paraguay_pesticides_detected()
     parse_repeated_stat_table(
         "Resultados Kruskall Wallis.xlsx",
         component="Industrial",
@@ -828,7 +1041,7 @@ def main() -> None:
                 "Enfoque 2 · En el Tiempo",
                 "Enfoque 3 · Evolución del Programa",
             ],
-            "flow_types": ["Entrada", "Medio", "Salida", "Pozo", "No clasificado", "Sin clasificar"],
+            "flow_types": ["Entrada", "Medio", "Salida", "Pozo", "Canal", "No clasificado", "Sin clasificar"],
         },
         "rio_paraguay_sources": RIO_PARAGUAY_SOURCES,
         "point_catalog": point_catalog,

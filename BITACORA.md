@@ -499,3 +499,41 @@
   - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/?v=ca6efcb_retry1` respondio 200 y ya contiene `evidenceGate`, `consultancyPriorityTable` y `watchlist-figure`.
   - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/app.js?v=ca6efcb_retry1` respondio 200 y ya contiene `renderConsultancyLayer`.
   - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/styles.css?v=ca6efcb_retry1` respondio 200 y ya contiene `watchlist-figure`.
+
+### Separacion del Rio Paraguay, meses y notaciones FW/GW/CH
+- El usuario solicito separar todo lo correspondiente al Rio Paraguay en una pestana independiente, con filtros propios y sin depender de los filtros globales del resto del tablero.
+- Tambien indico que Rio Paraguay tiene resultados por meses, no solo por anos; que faltaban parametros por saltos de filas en blanco en Excel; que los puntos FW estaban mal geolocalizados; y que la app debe distinguir claramente:
+  - `IND`: Industrial.
+  - `FOR`: Forestal.
+  - `FW`: agua superficial, rio o arroyo.
+  - `GW`: groundwater / pozos.
+  - `CH`: canales de drenaje dentro de parcelas.
+- Cambios aplicados al extractor `scripts/build_dashboard_data.py`:
+  - Se corrigio la lectura de `REsultados compilados Rio PAraguay_ todos los parametros.xlsx`; la columna real trae espacios y variantes de encabezado, por lo que ahora se detectan encabezados normalizados y se respetan bloques con filas en blanco entre parametros.
+  - Se incorporaron lectores mensuales/campana para Rio Paraguay desde `Pesticidas detectados.xlsx`, `pH Test.Tukey.Alfa.0.05.DMS.0.56075.xlsx`, `DBO5 Test.Tukey.Alfa.0.05.DMS.1.36846.xlsx` y `DQO Test.Tukey.Alfa.0.05.DMS.39.36231.xlsx`.
+  - Se agregaron `component_code` y `medium_code` a registros, series y catalogos.
+  - Se agrego el tipo operativo `Canal` para puntos `CH`.
+  - Se normalizaron parametros equivalentes para evitar duplicados por tildes, separadores o variantes de escritura.
+- Dataset regenerado:
+  - `raw_records`: 5.463.
+  - `series`: 3.132.
+  - `points`: 41.
+  - `parameters`: 57.
+  - Rio Paraguay: 342 series, 39 parametros, 145 registros mensuales/campana y 23 periodos.
+  - Puntos Rio Paraguay disponibles: `FW01-PY`, `FW02-PY`, `FW03-PY`, `Rio Paraguay consolidado` y `Rio Paraguay mensual`.
+- Cambios aplicados al frontend:
+  - La vista `Rio Paraguay` ahora tiene filtros internos propios por punto, parametro, ano, mes y modo `Solo meses`.
+  - Se agrego un grafico mensual especifico `rioMonthlyChart` y una tabla mensual `rioMonthlyTable`.
+  - Los filtros globales del panel lateral ahora muestran primero componente y medio, y el selector de puntos se acota dinamicamente a la seleccion actual.
+  - Los puntos visibles se rotulan con codigos como `IND/FW`, `FOR/GW` o `CH`, para separar pozos, aguas superficiales y canales.
+  - Se agrego bloque lateral de notaciones para que el usuario entienda `IND`, `FOR`, `FW`, `GW` y `CH`.
+  - Se corrigio el catalogo de puntos para que conserve `component_code` y `medium_code` al renderizar botones y listas.
+- Geolocalizacion FW:
+  - Se busco KMZ/KML en `G:\Mi unidad\MONITOREO_AGUA`, `G:\Mi unidad`, `G:\Mi unidad\geodatos` y en `C:\Users\DiegoMeza\OneDrive - PARACEL S.A\Archivos de Jose Nicolas Duarte - GIS PARACEL (NICO)`.
+  - No se encontro aun un KMZ/KML claramente asociado a puntos FW, agua, monitoreo, Rio Paraguay o muestreo.
+  - La app queda preparada para incorporar ese archivo cuando se reciba la ruta exacta; mientras tanto se informa en la vista Rio Paraguay que la geolocalizacion FW queda pendiente de fuente cartografica.
+- Verificaciones realizadas antes de publicacion:
+  - `node --check app\app.js`: correcto.
+  - `python -m py_compile scripts\build_dashboard_data.py`: correcto.
+  - `git diff --check`: sin errores.
+  - Edge headless sobre `file:///G:/Mi%20unidad/MONITOREO_AGUA/app/index.html?view=rio&qa=rio-monthly`: renderizo `rioMonthlyTable`, `rioMonthlyChart`, `Río Paraguay mensual`, `Tiametoxam` y los botones `IND/FW · FW01-PY`; no se detectaron `Uncaught`, `TypeError` ni `ReferenceError`.

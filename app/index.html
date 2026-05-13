@@ -123,6 +123,16 @@
 
         <div class="primary-filters">
           <label>
+            <span>Componente <button class="info" data-note="componentFilterNote">(i)</button></span>
+            <div id="componentChoices" class="choice-board mini" aria-label="Elegir componente"></div>
+            <select id="componentFilter" class="native-select"></select>
+          </label>
+          <label>
+            <span>Medio <button class="info" data-note="mediumFilterNote">(i)</button></span>
+            <div id="mediumChoices" class="choice-board mini" aria-label="Elegir medio"></div>
+            <select id="mediumFilter" class="native-select"></select>
+          </label>
+          <label>
             <span>Cauce o sistema <button class="info" data-note="waterBodyFilterNote">(i)</button></span>
             <div id="waterBodyChoices" class="choice-board compact" aria-label="Elegir cauce o sistema"></div>
             <select id="waterBodyFilter" class="native-select"></select>
@@ -155,6 +165,12 @@
           <span class="legend-pill"><i class="legend-dot salida"></i>Salida</span>
         </div>
 
+        <div class="notation-box">
+          <strong>Notaciones</strong>
+          <span><b>IND</b> Industrial · <b>FOR</b> Forestal</span>
+          <span><b>FW</b> agua superficial · <b>GW</b> pozos · <b>CH</b> canales de drenaje</span>
+        </div>
+
         <div class="side-filter-block">
           <span>Foco del mapa</span>
           <div class="map-modes side-map-modes" aria-label="Modo del mapa">
@@ -168,16 +184,6 @@
         <details class="advanced-box">
           <summary>Opciones avanzadas, trazabilidad y administración</summary>
           <div class="advanced-grid">
-            <label>
-              <span>Componente <button class="info" data-note="componentFilterNote">(i)</button></span>
-              <div id="componentChoices" class="choice-board mini" aria-label="Elegir componente"></div>
-              <select id="componentFilter" class="native-select"></select>
-            </label>
-            <label>
-              <span>Medio <button class="info" data-note="mediumFilterNote">(i)</button></span>
-              <div id="mediumChoices" class="choice-board mini" aria-label="Elegir medio"></div>
-              <select id="mediumFilter" class="native-select"></select>
-            </label>
             <label>
               <span>Tipo de punto <button class="info" data-note="pointTypeFilterNote">(i)</button></span>
               <div id="pointTypeChoices" class="choice-board mini" aria-label="Elegir tipo de punto"></div>
@@ -357,25 +363,86 @@
           <div class="context-card">
             <span class="eyebrow">Vista focalizada</span>
             <h1>Río Paraguay</h1>
-            <p>Concentra los puntos FW01-PY, FW02-PY y FW03-PY, sus fuentes y la clasificación entrada, intermedio y salida.</p>
-            <button id="forceRioView">Aplicar filtro Río Paraguay</button>
+            <p>Modulo independiente para revisar el Río Paraguay por puntos FW, parámetros y meses/campañas sin mezclarlo con pozos, arroyos forestales ni canales de drenaje.</p>
           </div>
-          <div class="rio-kpis" id="rioKpis"></div>
-          <details class="panel source-details">
-            <summary>Ver libros y hojas usados</summary>
-            <div id="rioSourceCards" class="source-grid"></div>
-          </details>
+
+          <div class="rio-layout">
+            <section class="panel rio-filter-panel">
+              <div class="panel-head compact-head">
+                <div>
+                  <span class="eyebrow">Filtros propios del Río PY</span>
+                  <h1>Analisis independiente</h1>
+                  <p>Estos botones solo afectan esta pestaña. Use el panel lateral para el resto del programa. <button class="info" data-note="rioIndependent">(i)</button></p>
+                </div>
+              </div>
+              <div class="rio-filter-grid">
+                <label>
+                  <span>Puntos FW</span>
+                  <div id="rioPointChoices" class="choice-board mini"></div>
+                </label>
+                <label>
+                  <span>Parámetros medidos</span>
+                  <div id="rioParameterChoices" class="choice-board scroll"></div>
+                </label>
+                <label>
+                  <span>Años</span>
+                  <div id="rioYearChoices" class="choice-board mini"></div>
+                </label>
+                <label>
+                  <span>Meses / campañas</span>
+                  <div id="rioMonthChoices" class="choice-board scroll"></div>
+                </label>
+              </div>
+              <div class="rio-actions">
+                <button id="rioMonthlyOnly" class="ghost" type="button">Solo meses</button>
+                <button id="clearRioFilters" type="button">Limpiar Río PY</button>
+              </div>
+              <div id="rioGeoStatus" class="geo-status"></div>
+            </section>
+
+            <section class="panel rio-month-panel">
+              <div class="panel-head">
+                <div>
+                  <span class="eyebrow">Serie mensual</span>
+                  <h1>Resultados por mes y campaña</h1>
+                  <p>Disponible para campañas con detalle mensual/campaña en los anexos actuales. Los parámetros restantes se mantienen en tabla consolidada por punto. <button class="info" data-note="rioMonthly">(i)</button></p>
+                </div>
+                <div id="rioChartMode" class="badge">Río PY</div>
+              </div>
+              <div class="rio-kpis" id="rioKpis"></div>
+              <svg id="rioMonthlyChart" role="img" aria-label="Serie mensual del Río Paraguay"></svg>
+            </section>
+          </div>
+
+          <section class="panel">
+            <div class="panel-head compact-head">
+              <div>
+                <h1>Tabla mensual Río Paraguay</h1>
+                <p>Valores por punto, parámetro, campaña y mes cuando el anexo contiene ese nivel de detalle.</p>
+              </div>
+            </div>
+            <div class="table-wrap compact">
+              <table id="rioMonthlyTable"></table>
+            </div>
+          </section>
+
           <section class="panel">
             <div class="panel-head">
               <div>
-                <h1>Datos del Río Paraguay</h1>
-                <p>Tabla resumida del filtro actual. <button class="info" data-note="rio">(i)</button></p>
+                <h1>Datos consolidados del Río Paraguay</h1>
+                <p>Incluye los parámetros recuperados de la tabla con saltos y filas en blanco. <button class="info" data-note="rio">(i)</button></p>
               </div>
             </div>
             <div class="table-wrap">
               <table id="rioTable"></table>
             </div>
           </section>
+
+          <details class="panel source-details">
+            <summary>Ver libros y hojas usados</summary>
+            <div id="rioSourceCards" class="source-grid"></div>
+          </details>
+
           <details class="panel detail-block">
             <summary>Ver tabla técnica completa recuperada</summary>
             <div class="table-wrap">

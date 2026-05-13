@@ -520,6 +520,24 @@ option {
   background: var(--green-700);
 }
 
+.notation-box {
+  display: grid;
+  gap: 5px;
+  padding: 10px;
+  color: var(--muted);
+  background: #fbfdf9;
+  border: 1px solid var(--soft-line);
+  border-left: 4px solid var(--blue);
+  border-radius: 8px;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.notation-box strong,
+.notation-box b {
+  color: var(--green-950);
+}
+
 .side-filter-block {
   display: grid;
   gap: 7px;
@@ -956,7 +974,8 @@ option {
 }
 
 #trendChart,
-#seriesTrendChart {
+#seriesTrendChart,
+#rioMonthlyChart {
   width: 100%;
   height: 420px;
   margin-top: 12px;
@@ -1678,6 +1697,10 @@ tr:hover td {
   background: var(--blue);
 }
 
+.chip.Canal {
+  background: #00837a;
+}
+
 .chip.Neutral {
   color: var(--ink);
   background: #e7ece7;
@@ -1752,6 +1775,65 @@ tr:hover td {
   color: var(--muted);
   line-height: 1.35;
   overflow-wrap: anywhere;
+}
+
+.rio-layout {
+  display: grid;
+  grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.rio-filter-panel {
+  align-self: stretch;
+}
+
+.rio-filter-grid {
+  display: grid;
+  gap: 11px;
+}
+
+.rio-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.rio-actions button {
+  min-height: 36px;
+  padding: 0 11px;
+  color: #fff;
+  background: var(--green-850);
+  border-radius: 6px;
+  font-weight: 900;
+}
+
+.rio-actions .ghost,
+.rio-actions .ghost.is-active {
+  color: var(--green-950);
+  background: var(--mint);
+  border: 1px solid #cfe3cf;
+}
+
+.geo-status {
+  display: grid;
+  gap: 5px;
+  margin-top: 12px;
+  padding: 11px;
+  background: var(--amber-soft);
+  border: 1px solid #eedb99;
+  border-radius: 6px;
+}
+
+.geo-status strong {
+  color: #5a4200;
+}
+
+.geo-status span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
 }
 
 .capture-hero {
@@ -2105,6 +2187,7 @@ tr:hover td {
   .method-flow,
   .methodology-grid,
   .source-grid,
+  .rio-layout,
   .rio-kpis,
   .reading-summary {
     grid-template-columns: 1fr;
@@ -2153,7 +2236,8 @@ tr:hover td {
   }
 
   #trendChart,
-  #seriesTrendChart {
+  #seriesTrendChart,
+  #rioMonthlyChart {
     height: 340px;
   }
 }

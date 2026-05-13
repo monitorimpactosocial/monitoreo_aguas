@@ -128,7 +128,19 @@ const notes = {
   },
   rio: {
     title: "Río Paraguay",
-    text: "Esta vista concentra los datos vinculados al Río Paraguay. La fuente principal es el libro de resultados compilados con hoja Comparación puntos_muestreo; también se listan anexos de Kruskal-Wallis, Shapiro y pesticidas asociados.",
+    text: "Esta vista concentra los datos vinculados al Río Paraguay. Trabaja con filtros propios para FW01-PY, FW02-PY, FW03-PY y los registros mensuales/campañas disponibles, sin depender del filtro global.",
+  },
+  rioIndependent: {
+    title: "Filtros independientes de Río PY",
+    text: "Los botones de esta pestaña no cambian el panel lateral global. Sirven para analizar Río Paraguay como módulo propio, separando puntos FW, meses/campañas y parámetros medidos.",
+  },
+  rioMonthly: {
+    title: "Río Paraguay por meses",
+    text: "La serie mensual usa campañas codificadas como C1_2023, C2_2023, etc. La app las ordena como meses del año y mantiene el código de campaña para trazabilidad.",
+  },
+  notationHelp: {
+    title: "Notaciones operativas",
+    text: "IND=Industrial, FOR=Forestal, FW=Freshwater o agua superficial, GW=Groundwater o pozo, y CH=canales de drenaje dentro de parcelas.",
   },
   nMetric: {
     title: "n · cantidad de observaciones",
@@ -184,8 +196,22 @@ const notes = {
   },
 };
 
-const pointTypes = ["Entrada", "Medio", "Salida", "Pozo", "No clasificado", "Sin clasificar"];
+const pointTypes = ["Entrada", "Medio", "Salida", "Pozo", "Canal", "No clasificado", "Sin clasificar"];
 const colors = ["#177346", "#b8423f", "#2f6fa3", "#d6a728", "#6b5aa6", "#00837a", "#c2682f", "#61727a"];
+const MONTH_NAMES_CLIENT = {
+  1: "Ene",
+  2: "Feb",
+  3: "Mar",
+  4: "Abr",
+  5: "May",
+  6: "Jun",
+  7: "Jul",
+  8: "Ago",
+  9: "Sep",
+  10: "Oct",
+  11: "Nov",
+  12: "Dic",
+};
 const overrideKey = "paracel-water-overrides-v1";
 const authStorageKey = "paracel-water-auth-v1";
 const pendingCaptureKey = "paracel-water-pending-captures-v1";
@@ -389,6 +415,13 @@ let overrides = loadOverrides();
 let authState = loadAuthState();
 let activeView = "dashboard";
 let mapMode = "all";
+const rioState = {
+  points: new Set(),
+  parameters: new Set(),
+  years: new Set(),
+  months: new Set(),
+  monthlyOnly: false,
+};
 
 const dom = {
   componentFilter: document.querySelector("#componentFilter"),
@@ -488,7 +521,13 @@ function bindEvents() {
   document.querySelector("#clearFilters").addEventListener("click", clearFilters);
   document.querySelector("#quickIron").addEventListener("click", () => selectParameter("hierro_soluble"));
   document.querySelector("#quickRio").addEventListener("click", selectRioParaguay);
-  document.querySelector("#forceRioView").addEventListener("click", selectRioParaguay);
+  document.querySelector("#forceRioView")?.addEventListener("click", selectRioParaguay);
+  document.querySelector("#rioMonthlyOnly")?.addEventListener("click", () => {
+    rioState.monthlyOnly = !rioState.monthlyOnly;
+    renderRioParaguay();
+    renderRioDetailTable();
+  });
+  document.querySelector("#clearRioFilters")?.addEventListener("click", clearRioFilters);
   document.querySelector("#sideCampaign").addEventListener("click", () => selectApproach("Enfoque 1 · Por Campaña"));
   document.querySelector("#sideTime").addEventListener("click", () => selectApproach("Enfoque 2 · En el Tiempo"));
   document.querySelector("#sideProgram").addEventListener("click", () => selectApproach("Enfoque 3 · Evolución del Programa"));
@@ -529,6 +568,7 @@ function handleFilterChange(event) {
     dom.waterBodyFilter.value = "";
     clearMulti(dom.pointFilter);
   }
+  refreshPointFilterOptions();
   renderAll();
 }
 
@@ -580,7 +620,6 @@ function populateFilters() {
   fillSingle(dom.waterBodyFilter, unique(series.map((row) => row.water_body)), "Todos");
   fillSingle(dom.pointTypeFilter, unique(series.map((row) => row.point_type)), "Todos");
   fillMultiple(dom.parameterFilter, parameterCatalog.map((row) => ({ value: row.parameter_key, label: row.parameter })));
-  fillMultiple(dom.pointFilter, pointCatalog.map((row) => ({ value: pointId(row), label: `${row.point} · ${row.water_body}` })));
   fillMultiple(dom.yearFilter, (DATA.summary?.years || []).map((year) => ({ value: String(year), label: String(year) })));
   fillMultiple(dom.approachFilter, (DATA.filters?.approaches || []).map((value) => ({ value, label: value })));
   fillSingle(dom.flowFilter, DATA.filters?.flow_types || pointTypes, "Todos");
@@ -588,8 +627,36 @@ function populateFilters() {
   dom.componentFilter.value = "Industrial";
   dom.mediumFilter.value = "Agua superficial";
   dom.waterBodyFilter.value = "Río Paraguay";
+  refreshPointFilterOptions(false);
   const rioPoints = pointCatalog.filter((row) => row.water_body === "Río Paraguay").map(pointId);
   selectValues(dom.pointFilter, rioPoints);
+}
+
+function refreshPointFilterOptions(preserveSelection = true) {
+  if (!dom.pointFilter) return;
+  const selected = preserveSelection ? new Set(selectedValues(dom.pointFilter)) : new Set();
+  const component = dom.componentFilter.value;
+  const medium = dom.mediumFilter.value;
+  const waterBody = dom.waterBodyFilter.value;
+  const pointType = dom.pointTypeFilter.value;
+  const points = pointCatalog.filter((row) => {
+    if (component && row.component !== component) return false;
+    if (medium && row.medium !== medium) return false;
+    if (waterBody && row.water_body !== waterBody) return false;
+    if (pointType && row.point_type !== pointType) return false;
+    return true;
+  });
+  fillMultiple(
+    dom.pointFilter,
+    points.map((row) => ({
+      value: pointId(row),
+      label: `${row.component_code || ""}/${row.medium_code || ""} · ${row.point} · ${row.water_body}`,
+    })),
+  );
+  if (preserveSelection) {
+    selectValues(dom.pointFilter, [...selected].filter((value) => points.some((row) => pointId(row) === value)));
+  }
+  renderChoiceControl({ select: dom.pointFilter, target: "#pointChoices", clearLabel: "Todos" });
 }
 
 function buildChoiceControls() {
@@ -738,8 +805,8 @@ function renderAll() {
     renderEvolutionDetailTable(rows);
   }
   if (activeView === "rio") {
-    renderRioParaguay(rows);
-    renderRioDetailTable(rows);
+    renderRioParaguay();
+    renderRioDetailTable();
   }
   if (activeView === "compatibility") {
     renderCompatibilityTable();
@@ -1436,7 +1503,9 @@ function buildLiveMapPoints(rows) {
       map.set(id, {
         id,
         component: row.component,
+        component_code: row.component_code,
         medium: row.medium,
+        medium_code: row.medium_code,
         water_body: row.water_body,
         point: row.point,
         point_type: row.point_type,
@@ -1504,6 +1573,7 @@ function flowColor(type) {
   if (type === "Medio") return "#d8a928";
   if (type === "Salida") return "#177346";
   if (type === "Pozo") return "#2f6fa3";
+  if (type === "Canal") return "#00837a";
   return "#6b7280";
 }
 
@@ -1777,8 +1847,9 @@ function renderDataDetailTable(rows) {
   ]));
 }
 
-function renderRioParaguay(rows) {
-  const rioRows = rows.filter((row) => row.water_body === "Río Paraguay");
+function renderRioParaguay() {
+  const rioRows = filteredRioRows();
+  const monthlyRows = rioRows.filter((row) => row.month && numeric(row.value));
   const sources = DATA.rio_paraguay_sources || [];
   document.querySelector("#rioSourceCards").innerHTML = sources
     .map((source) => `<article class="source-card"><strong>${escapeHtml(source.role)}</strong><span>${escapeHtml(source.file)} · ${escapeHtml(source.sheet)}</span></article>`)
@@ -1786,27 +1857,44 @@ function renderRioParaguay(rows) {
   document.querySelector("#rioKpis").innerHTML = `
     <div><strong>${formatInt(rioRows.length)}</strong><span>series filtradas</span></div>
     <div><strong>${formatInt(unique(rioRows.map((row) => row.parameter_key)).length)}</strong><span>parámetros</span></div>
-    <div><strong>${formatInt(unique(rioRows.map((row) => row.point)).length)}</strong><span>puntos del Río Paraguay</span></div>
+    <div><strong>${formatInt(monthlyRows.length)}</strong><span>registros mensuales</span></div>
   `;
-  renderTable("#rioTable", ["Punto", noteHeader("Tipo", "colorHelp"), "Parámetro", "Periodo", noteHeader("n", "nMetric"), noteHeader("Valor", "valueMetric"), noteHeader("Estado", "status")], rioRows.slice(0, 700).map((row) => [
+  renderRioControls();
+  renderRioGeoStatus();
+  drawRioMonthlyChart(monthlyRows);
+  renderTable("#rioMonthlyTable", ["Mes", "Campaña", "Punto", noteHeader("Tipo", "colorHelp"), "Parámetro", noteHeader("n", "nMetric"), noteHeader("Valor", "valueMetric"), "Fuente"], monthlyRows.slice(0, 500).map((row) => [
+    rioPeriodLabel(row),
+    row.campaign || "",
     row.point,
     chip(row.point_type),
     row.parameter,
-    periodLabel(row),
+    formatCount(row.n),
+    formatNumber(row.value),
+    sourceLabel(row.source),
+  ]));
+  renderTable("#rioTable", ["Punto", noteHeader("Tipo", "colorHelp"), "Código", "Parámetro", "Periodo", "Campaña", noteHeader("n", "nMetric"), noteHeader("Valor", "valueMetric"), noteHeader("Estado", "status")], rioRows.slice(0, 900).map((row) => [
+    row.point,
+    chip(row.point_type),
+    `${row.component_code || ""}/${row.medium_code || ""}`,
+    row.parameter,
+    rioPeriodLabel(row),
+    row.campaign || "",
     formatCount(row.n),
     formatNumber(row.value),
     row.comparable ? "Comparable" : "Referencial",
   ]));
 }
 
-function renderRioDetailTable(rows) {
-  const rioRows = rows.filter((row) => row.water_body === "Río Paraguay");
-  renderTable("#rioDetailTable", ["Punto", noteHeader("Tipo", "colorHelp"), noteHeader("Color pestana", "colorHelp"), "Parametro", "Periodo", noteHeader("n", "nMetric"), noteHeader("Valor", "valueMetric"), noteHeader("DE", "sdMetric"), noteHeader("Enfoques", "approachHelp"), noteHeader("Representatividad", "representativeness"), noteHeader("Fuente", "sourceHelp")], rioRows.slice(0, 900).map((row) => [
+function renderRioDetailTable() {
+  const rioRows = filteredRioRows();
+  renderTable("#rioDetailTable", ["Punto", noteHeader("Tipo", "colorHelp"), "Código", noteHeader("Color pestana", "colorHelp"), "Parametro", "Periodo", "Campaña", noteHeader("n", "nMetric"), noteHeader("Valor", "valueMetric"), noteHeader("DE", "sdMetric"), noteHeader("Enfoques", "approachHelp"), noteHeader("Representatividad", "representativeness"), noteHeader("Fuente", "sourceHelp")], rioRows.slice(0, 1100).map((row) => [
     row.point,
     chip(row.point_type),
+    `${row.component_code || ""}/${row.medium_code || ""}`,
     colorLabel(row),
     row.parameter,
-    periodLabel(row),
+    rioPeriodLabel(row),
+    row.campaign || "",
     formatCount(row.n),
     formatNumber(row.value),
     formatNumber(row.sd),
@@ -1814,6 +1902,200 @@ function renderRioDetailTable(rows) {
     row.representativeness_note || "",
     sourceLabel(row.source),
   ]));
+}
+
+function allRioRows() {
+  return series.filter(isRioRow);
+}
+
+function isRioRow(row) {
+  return normalizeText(row.water_body) === "rio_paraguay";
+}
+
+function filteredRioRows() {
+  return allRioRows()
+    .filter((row) => {
+      if (rioState.monthlyOnly && !row.month) return false;
+      if (rioState.points.size && !rioState.points.has(row.point)) return false;
+      if (rioState.parameters.size && !rioState.parameters.has(row.parameter_key)) return false;
+      if (rioState.years.size && !rioState.years.has(String(row.year))) return false;
+      if (rioState.months.size && !rioState.months.has(String(row.month || ""))) return false;
+      return true;
+    })
+    .sort(rioSort);
+}
+
+function rioSort(a, b) {
+  const aSort = a.period_sort || (a.year ? a.year * 100 : 999999);
+  const bSort = b.period_sort || (b.year ? b.year * 100 : 999999);
+  return aSort - bSort || String(a.point).localeCompare(String(b.point), "es") || String(a.parameter).localeCompare(String(b.parameter), "es");
+}
+
+function renderRioControls() {
+  const rows = allRioRows();
+  renderRioChoiceBoard("#rioPointChoices", "points", unique(rows.map((row) => row.point)).map((point) => ({ value: point, label: rioPointLabel(point) })));
+  renderRioChoiceBoard(
+    "#rioParameterChoices",
+    "parameters",
+    unique(rows.map((row) => row.parameter_key)).map((key) => ({ value: key, label: rows.find((row) => row.parameter_key === key)?.parameter || key })),
+  );
+  renderRioChoiceBoard("#rioYearChoices", "years", unique(rows.map((row) => row.year).filter(Boolean)).map((year) => ({ value: String(year), label: String(year) })));
+  renderRioChoiceBoard(
+    "#rioMonthChoices",
+    "months",
+    [...new Set(rows.filter((row) => row.month).map((row) => row.month))]
+      .sort((a, b) => a - b)
+      .map((month) => ({ value: String(month), label: MONTH_NAMES_CLIENT[month] || String(month) })),
+  );
+  const monthlyButton = document.querySelector("#rioMonthlyOnly");
+  if (monthlyButton) {
+    monthlyButton.classList.toggle("is-active", rioState.monthlyOnly);
+    monthlyButton.textContent = rioState.monthlyOnly ? "Viendo solo meses" : "Solo meses";
+  }
+}
+
+function renderRioChoiceBoard(selector, type, options) {
+  const root = document.querySelector(selector);
+  if (!root) return;
+  const stateSet = rioState[type];
+  root.innerHTML = [
+    `<button type="button" class="choice-pill ${stateSet.size ? "" : "is-active"}" data-rio-choice="${type}" data-value="">Todos</button>`,
+    ...options.map((option) => `<button type="button" class="choice-pill ${stateSet.has(option.value) ? "is-active" : ""}" data-rio-choice="${type}" data-value="${escapeAttr(option.value)}">${escapeHtml(choiceLabel(option.label))}</button>`),
+  ].join("");
+  root.querySelectorAll("[data-rio-choice]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const set = rioState[button.dataset.rioChoice];
+      const value = button.dataset.value || "";
+      if (!value) set.clear();
+      else if (set.has(value)) set.delete(value);
+      else set.add(value);
+      renderRioParaguay();
+      renderRioDetailTable();
+    });
+  });
+}
+
+function clearRioFilters() {
+  rioState.points.clear();
+  rioState.parameters.clear();
+  rioState.years.clear();
+  rioState.months.clear();
+  rioState.monthlyOnly = false;
+  renderRioParaguay();
+  renderRioDetailTable();
+}
+
+function rioPointLabel(point) {
+  if (point === "Río Paraguay mensual") return "Mensual consolidado";
+  if (point === "Río Paraguay consolidado") return "Consolidado anual";
+  return point;
+}
+
+function rioPeriodLabel(row) {
+  return row.month_label || row.period || periodLabel(row);
+}
+
+function renderRioGeoStatus() {
+  const root = document.querySelector("#rioGeoStatus");
+  if (!root) return;
+  root.innerHTML = `<strong>Geolocalización FW</strong><span>El repo no contiene aún el KMZ/KML de puntos FW. Cuando se incorpore, esta pestaña tomará esas coordenadas como fuente principal del mapa.</span>`;
+}
+
+function drawRioMonthlyChart(rows) {
+  const svg = document.querySelector("#rioMonthlyChart");
+  const modeLabel = document.querySelector("#rioChartMode");
+  if (!svg) return;
+  svg.innerHTML = "";
+  const chartRows = rows.filter((row) => numeric(row.value));
+  const width = 1000;
+  const height = 410;
+  const margin = { top: 44, right: 30, bottom: 64, left: 70 };
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  if (!chartRows.length) {
+    svg.append(textEl(width / 2, height / 2, "No hay registros mensuales para el filtro actual", "chart-title", "middle"));
+    if (modeLabel) modeLabel.textContent = "sin meses";
+    return;
+  }
+  const parameterCount = unique(chartRows.map((row) => row.parameter_key)).length;
+  const normalize = parameterCount > 1;
+  if (modeLabel) modeLabel.textContent = normalize ? "base 100 mensual" : "valor mensual";
+  const labels = unique(chartRows.map((row) => row.period)).sort();
+  const groups = groupForRioMonthlyChart(chartRows, labels, normalize).slice(0, 8);
+  const values = groups.flatMap((group) => group.points.map((point) => point.y).filter(numeric));
+  let min = Math.min(...values);
+  let max = Math.max(...values);
+  if (min === max) {
+    min -= 1;
+    max += 1;
+  }
+  const pad = (max - min) * 0.14;
+  min -= pad;
+  max += pad;
+  const plotW = width - margin.left - margin.right;
+  const plotH = height - margin.top - margin.bottom;
+  const x = (idx) => margin.left + (labels.length === 1 ? plotW / 2 : (idx / (labels.length - 1)) * plotW);
+  const y = (value) => margin.top + (1 - (value - min) / (max - min)) * plotH;
+  for (let i = 0; i <= 5; i += 1) {
+    const value = min + ((max - min) * i) / 5;
+    const yy = y(value);
+    svg.append(lineEl(margin.left, yy, width - margin.right, yy, "chart-grid"));
+    svg.append(textEl(margin.left - 10, yy + 4, formatNumber(value), "chart-label", "end"));
+  }
+  svg.append(lineEl(margin.left, height - margin.bottom, width - margin.right, height - margin.bottom, "chart-axis"));
+  labels.forEach((label, idx) => {
+    const xx = x(idx);
+    svg.append(lineEl(xx, height - margin.bottom, xx, height - margin.bottom + 6, "chart-axis"));
+    svg.append(textEl(xx, height - margin.bottom + 24, label.slice(2), "chart-label", "middle"));
+  });
+  groups.forEach((group, index) => {
+    const color = colors[index % colors.length];
+    const points = group.points.filter((point) => numeric(point.y));
+    const path = points.map((point, idx) => `${idx === 0 ? "M" : "L"}${x(point.xIndex)},${y(point.y)}`).join(" ");
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    line.setAttribute("d", path);
+    line.setAttribute("class", "chart-line");
+    line.setAttribute("stroke", color);
+    svg.append(line);
+    points.forEach((point) => {
+      const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      circle.setAttribute("cx", x(point.xIndex));
+      circle.setAttribute("cy", y(point.y));
+      circle.setAttribute("r", 4);
+      circle.setAttribute("class", "chart-dot");
+      circle.setAttribute("fill", color);
+      svg.append(circle);
+    });
+    const legendY = 18 + index * 18;
+    svg.append(lineEl(width - 270, legendY - 4, width - 252, legendY - 4, "", color));
+    svg.append(textEl(width - 246, legendY, group.label.slice(0, 45), "chart-label", "start"));
+  });
+  svg.append(textEl(margin.left, 26, normalize ? "Río Paraguay mensual: tendencia normalizada" : "Río Paraguay mensual: valores disponibles", "chart-title"));
+}
+
+function groupForRioMonthlyChart(rows, labels, normalize) {
+  const map = new Map();
+  rows.forEach((row) => {
+    const label = `${row.parameter} · ${rioPointLabel(row.point)}`;
+    if (!map.has(label)) map.set(label, []);
+    map.get(label).push(row);
+  });
+  return [...map.entries()]
+    .sort((a, b) => b[1].length - a[1].length)
+    .map(([label, rawRows]) => {
+      const firstValue = rawRows.find((row) => numeric(row.value))?.value || 1;
+      const points = labels.map((period, xIndex) => {
+        const periodRows = rawRows.filter((row) => row.period === period && numeric(row.value));
+        if (!periodRows.length) return { xIndex, y: null };
+        const value = statisticsMean(periodRows.map((row) => row.value));
+        return { xIndex, y: normalize ? (value / firstValue) * 100 : value };
+      });
+      return { label, points };
+    });
+}
+
+function statisticsMean(values) {
+  const valid = values.filter(numeric);
+  return valid.length ? valid.reduce((sum, value) => sum + value, 0) / valid.length : null;
 }
 
 function loadLegacyData() {
@@ -2021,7 +2303,7 @@ function renderLegacyLastRecords(rows) {
 function legacyValue(row, key) {
   if (!row) return "";
   if (row[key] !== undefined && row[key] !== null) return row[key];
-  if (key === "Año") return row["AÃ±o"] ?? row["Anio"] ?? "";
+  if (key === "Año") return row["Año"] ?? row["AÃ±o"] ?? row["AÃƒÂ±o"] ?? row["Anio"] ?? "";
   return "";
 }
 
@@ -2636,6 +2918,7 @@ function selectRioParaguay() {
   dom.mediumFilter.value = "Agua superficial";
   dom.waterBodyFilter.value = "Río Paraguay";
   clearMulti(dom.pointFilter);
+  refreshPointFilterOptions(false);
   const rioPoints = pointCatalog.filter((row) => row.water_body === "Río Paraguay").map(pointId);
   selectValues(dom.pointFilter, rioPoints);
   renderAll();
@@ -2705,7 +2988,9 @@ function buildPointCatalog(rows) {
     if (!map.has(id)) {
       map.set(id, {
         component: row.component,
+        component_code: row.component_code,
         medium: row.medium,
+        medium_code: row.medium_code,
         water_body: row.water_body,
         point: row.point,
         point_type: row.point_type,
