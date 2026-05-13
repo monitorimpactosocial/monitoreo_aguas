@@ -460,3 +460,12 @@
   - Servidor local `http://127.0.0.1:8797/app/?qa=authgate`: respuesta 200.
   - La pagina local contiene `loginGate`, `auth-locked`, `methodology-grid` y no contiene `id="legacy"`.
   - Backend Apps Script `authCheck` con token invalido respondio JSONP 200 con error controlado `Sesion invalida`, confirmando la compuerta de validacion.
+- Commit funcional publicado: `1d3fbf5`.
+- Verificacion posterior a GitHub Pages:
+  - El primer push quedo en timeout; se verifico que el commit existia solo localmente y se reintento `git push origin main`.
+  - El remoto `origin/main` quedo en `1d3fbf55ba5defb54ce815c66ad2936640ba9be7`.
+  - Raw GitHub confirmo de inmediato `loginGate`, `auth-locked`, `gateLoginForm`, `methodology-grid`, `capture-steps`, `bootstrapAuthentication`, `lockApp` y `unlockApp`.
+  - GitHub Pages sirvio cache anterior al primer intento y luego propago correctamente.
+  - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/?v=1d3fbf5` respondio 200 y ya contiene login inicial, metodologia y carga guiada.
+  - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/app.js?v=1d3fbf5` respondio 200 y ya contiene `bootstrapAuthentication`, `lockApp`, `unlockApp` y `authCheck`.
+  - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/styles.css?v=1d3fbf5` respondio 200 y ya contiene `login-gate`, `auth-locked`, `methodology-grid` y `capture-steps`.
