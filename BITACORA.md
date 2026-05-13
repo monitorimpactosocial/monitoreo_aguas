@@ -406,3 +406,32 @@
   - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/?v=2f8686f` respondio 200 y ya contiene `activeFilterSummary`, `analystBrief`, `side-filter-block` y `app-shell`.
   - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/app.js?v=2f8686f` respondio 200 y ya contiene `renderAnalystBrief`, `alignParentsToWaterBody` y `renderFilterSummary`.
   - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/styles.css?v=2f8686f` respondio 200 y ya contiene `app-shell`, `filter-summary`, `analyst-grid` y `side-map-modes`.
+
+### Pestaña de carga, login y auditoria
+- El usuario reclamo que faltaba una pestaña para que los responsables carguen nuevos datos y pidio implementar logueo, registro de primera vez, autenticacion posterior, recuperacion de contrasena y registro de cambios en el libro en linea.
+- Se agrego una nueva vista `Cargar datos` en el tablero publico:
+  - Formulario de login.
+  - Formulario de registro inicial de usuario.
+  - Flujo de recuperacion con codigo enviado al correo registrado.
+  - Formulario operativo para cargar una muestra por punto, ano y temporada.
+  - Grilla de parametros medidos, permitiendo dejar vacios los parametros no medidos para no crear ceros falsos.
+  - Panel de auditoria de cargas enviadas o confirmadas.
+- Se implemento backend Apps Script para el libro en linea:
+  - Hojas nuevas creadas automaticamente: `USUARIOS_APP`, `SESIONES_APP` y `AUDITORIA_CAMBIOS`.
+  - El primer usuario registrado queda con rol `admin`; los siguientes quedan como `responsable`.
+  - Las contrasenas no se guardan en texto plano: el navegador envia hash SHA-256 y el backend guarda hash salteado.
+  - Las sesiones son temporales y se validan antes de aceptar una carga.
+  - Cada carga queda auditada con usuario, fecha, accion, punto, ano, temporada, resumen, origen y user agent.
+- Se actualizo la conexion del frontend al backend Apps Script version `@19`:
+  - `https://script.google.com/macros/s/AKfycbx_nVf5X3Y1VBsfMXWmFLxFmS4Xl8YuJtBB28wmtdHKZfE1T-b2HDhuZoMX76s_b0NS4w/exec`
+- Se ajusto `.claspignore` para no empujar la carpeta `app/` como codigo servidor de Apps Script; el tablero vive en GitHub Pages y el backend vive en Apps Script.
+- Verificaciones realizadas:
+  - `node --check app\app.js`: correcto.
+  - `Get-Content Code.gs -Raw | node --check --input-type=commonjs -`: correcto.
+  - `git diff --check`: sin errores.
+  - `npx clasp push -f`: empujo 4 archivos (`appsscript.json`, `Code.gs`, `DataImport.gs`, `index.html`).
+  - `npx clasp deploy -d "v19-login-carga-auditoria"`: desplego `AKfycbx_nVf5X3Y1VBsfMXWmFLxFmS4Xl8YuJtBB28wmtdHKZfE1T-b2HDhuZoMX76s_b0NS4w @19`.
+  - `?action=ping` en el backend respondio 200 y confirmo las hojas `USUARIOS_APP`, `SESIONES_APP`, `AUDITORIA_CAMBIOS`, `PUNTOS` y `BD_PRINCIPAL`.
+  - `?action=authCheck` con token invalido respondio JSONP correctamente con error controlado de sesion invalida.
+  - `?action=authRegister` incompleto respondio validacion controlada de usuario invalido sin crear usuario.
+  - Servidor local `http://127.0.0.1:8796/app/?qa=capture`: respuesta 200 y contiene `captureForm`.

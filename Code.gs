@@ -4,6 +4,15 @@
 // =============================================================
 
 const SS_ID = '1VmBLNbeUCW1GtxrXz3zsUQl0HdRqc5SSUBdtMywql4U';
+const AUTH_HEADERS = [
+  'Usuario','Nombre','Correo','PasswordHash','Salt','Rol','Estado',
+  'Creado','UltimoAcceso','ResetHash','ResetExpira'
+];
+const SESSION_HEADERS = ['TokenHash','Usuario','Rol','Creado','Expira','Estado'];
+const AUDIT_HEADERS = [
+  'Timestamp','Usuario','Accion','Objeto','ID_Muestra','Punto_ID',
+  'Anio','Temporada','Resumen','UserAgent','Origen'
+];
 
 // Column headers — BD_PRINCIPAL (must match Google Sheet exactly)
 const BD_HEADERS = [
@@ -68,30 +77,34 @@ const CUMPL_HISTORICO = [
 
 function doPost(e) {
   try {
-    const payload = JSON.parse(e.postData.contents);
+    initializeSheets_();
+    const payload = parsePayload_(e);
     if (payload.action === 'importBulk') {
-      return ContentService
-        .createTextOutput(JSON.stringify(importHistoricalBulk(payload.records)))
-        .setMimeType(ContentService.MimeType.JSON);
+      return jsonResponse_(importHistoricalBulk(payload.records));
+    }
+    if (payload.action === 'saveMeasurement') {
+      return jsonResponse_(saveMeasurement_(payload));
     }
     if (payload.action === 'saveRecord') {
-      return ContentService
-        .createTextOutput(JSON.stringify(saveRecord(payload.data)))
-        .setMimeType(ContentService.MimeType.JSON);
+      return jsonResponse_(saveMeasurement_({
+        sessionToken: payload.sessionToken || payload.token,
+        record: payload.data || payload.record,
+        client: payload.client || {}
+      }));
     }
-    return ContentService
-      .createTextOutput(JSON.stringify({ success: false, error: 'Unknown action' }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return jsonResponse_({ success: false, error: 'Unknown action' });
   } catch(err) {
-    return ContentService
-      .createTextOutput(JSON.stringify({ success: false, error: err.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return jsonResponse_({ success: false, error: err.toString() });
   }
 }
 
 function doGet(e) {
   initializeSheets_();
   autoImportOnce_();
+  const action = e && e.parameter && e.parameter.action;
+  if (isAuthAction_(action)) {
+    return jsonResponse_(handleAuthAction_(action, parsePayload_(e)), e.parameter.callback);
+  }
 
   if (e && e.parameter && e.parameter.action === 'ping') {
     const ss = SpreadsheetApp.openById(SS_ID);
@@ -100,24 +113,18 @@ function doGet(e) {
     const sample = sh && sh.getLastRow() > 1
       ? sh.getRange(2, 1, 1, Math.min(5, sh.getLastColumn())).getValues()[0]
       : [];
-    return ContentService
-      .createTextOutput(JSON.stringify({ sheets, sample, lastRow: sh ? sh.getLastRow() : 0 }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return jsonResponse_({ sheets, sample, lastRow: sh ? sh.getLastRow() : 0 }, e.parameter.callback);
   }
   if (e && e.parameter && e.parameter.action === 'records') {
     const r = getLastRecords(3);
-    return ContentService
-      .createTextOutput(JSON.stringify({ ok: r.success, count: r.data ? r.data.length : 0,
-        first: r.data && r.data.length > 0 ? r.data[0] : null, error: r.error }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return jsonResponse_({ ok: r.success, count: r.data ? r.data.length : 0,
+        first: r.data && r.data.length > 0 ? r.data[0] : null, error: r.error }, e.parameter.callback);
   }
   if (e && e.parameter && e.parameter.action === 'stats') {
     const s = getStats();
-    return ContentService
-      .createTextOutput(JSON.stringify({ ok: s.success, totalRecords: s.totalRecords,
+    return jsonResponse_({ ok: s.success, totalRecords: s.totalRecords,
         bySub: s.bySub, cumplTSlen: s.cumplTS ? s.cumplTS.length : 0,
-        byPuntoLen: s.byPunto ? s.byPunto.length : 0, error: s.error }))
-      .setMimeType(ContentService.MimeType.JSON);
+        byPuntoLen: s.byPunto ? s.byPunto.length : 0, error: s.error }, e.parameter.callback);
   }
 
   return HtmlService
@@ -161,6 +168,9 @@ function initializeSheets_() {
         .setFontWeight('bold').setBackground('#1F4E79').setFontColor('#FFFFFF');
       sh.setFrozenRows(1);
     }
+    ensureSheet_(ss, 'USUARIOS_APP', AUTH_HEADERS);
+    ensureSheet_(ss, 'SESIONES_APP', SESSION_HEADERS);
+    ensureSheet_(ss, 'AUDITORIA_CAMBIOS', AUDIT_HEADERS);
   } catch(err) {
     console.error('initializeSheets_:', err);
   }
@@ -292,6 +302,7 @@ function getPuntos() {
  */
 function saveRecord(data) {
   try {
+    data = normalizeRecordInput_(data || {});
     const ss = SpreadsheetApp.openById(SS_ID);
     let sh = ss.getSheetByName('BD_PRINCIPAL');
 
@@ -324,7 +335,7 @@ function saveRecord(data) {
       sh.getRange(lastRow, 1, 1, sheetHeaders.length).setBackground('#DEEAF1');
     }
 
-    return { success: true, message: `Registro "${row[0]}" guardado correctamente.` };
+    return { success: true, id: row[0], message: `Registro "${row[0]}" guardado correctamente.` };
   } catch (err) {
     return { success: false, error: err.toString() };
   }
@@ -483,4 +494,311 @@ function getPuntosConCumplimiento() {
   } catch (err) {
     return { success: false, error: err.toString(), data: PUNTOS_ACTIVOS };
   }
+}
+
+// =====================================================================
+// AUTH, CAPTURE AND AUDIT API
+// =====================================================================
+
+function isAuthAction_(action) {
+  return ['authRegister','authLogin','authRequestReset','authResetPassword','authCheck','recentAudit'].indexOf(action) >= 0;
+}
+
+function handleAuthAction_(action, payload) {
+  try {
+    if (action === 'authRegister') return authRegister_(payload);
+    if (action === 'authLogin') return authLogin_(payload);
+    if (action === 'authRequestReset') return authRequestReset_(payload);
+    if (action === 'authResetPassword') return authResetPassword_(payload);
+    if (action === 'authCheck') return authCheck_(payload.sessionToken || payload.token);
+    if (action === 'recentAudit') return recentAudit_(payload.sessionToken || payload.token);
+    return { success: false, error: 'Accion desconocida.' };
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
+}
+
+function parsePayload_(e) {
+  let payload = {};
+  if (e && e.postData && e.postData.contents) {
+    payload = JSON.parse(e.postData.contents);
+  }
+  if (e && e.parameter) {
+    Object.keys(e.parameter).forEach(function(key) {
+      if (key !== 'payload' && key !== 'callback') payload[key] = e.parameter[key];
+    });
+    if (e.parameter.payload) {
+      const extra = JSON.parse(e.parameter.payload);
+      Object.keys(extra).forEach(function(key) { payload[key] = extra[key]; });
+    }
+  }
+  return payload;
+}
+
+function jsonResponse_(data, callback) {
+  const json = JSON.stringify(data || {});
+  if (callback) {
+    return ContentService
+      .createTextOutput(String(callback).replace(/[^\w.$]/g, '') + '(' + json + ');')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+  return ContentService
+    .createTextOutput(json)
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function ensureSheet_(ss, name, headers) {
+  let sh = ss.getSheetByName(name);
+  if (!sh) {
+    sh = ss.insertSheet(name);
+    sh.appendRow(headers);
+    sh.getRange(1, 1, 1, headers.length)
+      .setFontWeight('bold')
+      .setBackground('#1F4E79')
+      .setFontColor('#FFFFFF');
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+function authRegister_(payload) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const username = normalizeUsername_(payload.username);
+    const fullName = String(payload.fullName || '').trim();
+    const email = String(payload.email || '').trim().toLowerCase();
+    const passwordDigest = String(payload.passwordDigest || '').trim();
+    if (!username || !/^[a-z0-9._-]{3,40}$/.test(username)) throw new Error('Usuario invalido. Use nombre.apellido.');
+    if (!fullName) throw new Error('Indique nombre y apellido.');
+    if (!email || email.indexOf('@') < 0) throw new Error('Indique un correo valido.');
+    if (!/^[a-f0-9]{64}$/i.test(passwordDigest)) throw new Error('Contrasena invalida.');
+
+    const ss = SpreadsheetApp.openById(SS_ID);
+    const sh = ensureSheet_(ss, 'USUARIOS_APP', AUTH_HEADERS);
+    const found = findUser_(username);
+    if (found) throw new Error('Ese usuario ya existe.');
+    const role = countUsers_() === 0 ? 'admin' : 'responsable';
+    const salt = Utilities.getUuid();
+    const hash = hash_(salt + ':' + passwordDigest);
+    sh.appendRow([username, fullName, email, hash, salt, role, 'activo', new Date(), '', '', '']);
+    appendAudit_(username, 'authRegister', 'USUARIOS_APP', '', '', '', '', 'Usuario creado: ' + role, '', 'Apps Script');
+    const session = createSession_(username, role, fullName);
+    return { success: true, session, message: 'Usuario creado.' };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function authLogin_(payload) {
+  const username = normalizeUsername_(payload.username);
+  const passwordDigest = String(payload.passwordDigest || '').trim();
+  const user = findUser_(username);
+  if (!user) throw new Error('Usuario o contrasena incorrectos.');
+  if (String(user.values.Estado || '').toLowerCase() !== 'activo') throw new Error('Usuario inactivo.');
+  const expected = hash_(user.values.Salt + ':' + passwordDigest);
+  if (expected !== user.values.PasswordHash) throw new Error('Usuario o contrasena incorrectos.');
+  user.sheet.getRange(user.row, user.index.UltimoAcceso + 1).setValue(new Date());
+  appendAudit_(username, 'authLogin', 'SESIONES_APP', '', '', '', '', 'Inicio de sesion', '', 'Apps Script');
+  return { success: true, session: createSession_(username, user.values.Rol, user.values.Nombre), message: 'Sesion iniciada.' };
+}
+
+function authRequestReset_(payload) {
+  const account = String(payload.account || '').trim().toLowerCase();
+  const user = findUser_(account) || findUserByEmail_(account);
+  if (!user) return { success: true, message: 'Si el usuario existe, se enviara un codigo al correo registrado.' };
+  const code = Utilities.getUuid().replace(/-/g, '').slice(0, 6).toUpperCase();
+  const expires = new Date(Date.now() + 30 * 60 * 1000);
+  user.sheet.getRange(user.row, user.index.ResetHash + 1).setValue(hash_(code));
+  user.sheet.getRange(user.row, user.index.ResetExpira + 1).setValue(expires);
+  if (user.values.Correo) {
+    MailApp.sendEmail({
+      to: user.values.Correo,
+      subject: 'Codigo de recuperacion - Monitoreo de agua PARACEL',
+      body: 'Codigo de recuperacion: ' + code + '\nVence en 30 minutos.\nSi no solicito este cambio, ignore este mensaje.'
+    });
+  }
+  appendAudit_(user.values.Usuario, 'authRequestReset', 'USUARIOS_APP', '', '', '', '', 'Codigo de recuperacion solicitado', '', 'Apps Script');
+  return { success: true, message: 'Codigo enviado al correo registrado.' };
+}
+
+function authResetPassword_(payload) {
+  const account = String(payload.account || '').trim().toLowerCase();
+  const code = String(payload.code || '').trim().toUpperCase();
+  const passwordDigest = String(payload.passwordDigest || '').trim();
+  const user = findUser_(account) || findUserByEmail_(account);
+  if (!user) throw new Error('No se encontro el usuario.');
+  if (!code || hash_(code) !== user.values.ResetHash) throw new Error('Codigo incorrecto.');
+  if (new Date(user.values.ResetExpira).getTime() < Date.now()) throw new Error('El codigo vencio.');
+  if (!/^[a-f0-9]{64}$/i.test(passwordDigest)) throw new Error('Contrasena invalida.');
+  const salt = Utilities.getUuid();
+  user.sheet.getRange(user.row, user.index.PasswordHash + 1).setValue(hash_(salt + ':' + passwordDigest));
+  user.sheet.getRange(user.row, user.index.Salt + 1).setValue(salt);
+  user.sheet.getRange(user.row, user.index.ResetHash + 1).setValue('');
+  user.sheet.getRange(user.row, user.index.ResetExpira + 1).setValue('');
+  appendAudit_(user.values.Usuario, 'authResetPassword', 'USUARIOS_APP', '', '', '', '', 'Contrasena actualizada por recuperacion', '', 'Apps Script');
+  return { success: true, message: 'Contrasena actualizada.' };
+}
+
+function authCheck_(token) {
+  const session = validateSession_(token);
+  return { success: true, session };
+}
+
+function saveMeasurement_(payload) {
+  const session = validateSession_(payload.sessionToken || payload.token);
+  const record = normalizeRecordInput_(payload.record || payload.data || {});
+  const result = saveRecord(record);
+  if (!result.success) return result;
+  appendAudit_(
+    session.username,
+    'saveMeasurement',
+    'BD_PRINCIPAL',
+    result.id || '',
+    record.Punto_ID || '',
+    record.Anio || record['AÃ±o'] || record['Año'] || '',
+    record.Temporada || record.Cod_Temporada || '',
+    summarizeRecord_(record),
+    payload.client && payload.client.userAgent ? payload.client.userAgent : '',
+    payload.client && payload.client.app ? payload.client.app : 'GitHub Pages'
+  );
+  return { success: true, id: result.id, message: result.message };
+}
+
+function recentAudit_(token) {
+  const session = validateSession_(token);
+  const ss = SpreadsheetApp.openById(SS_ID);
+  const sh = ensureSheet_(ss, 'AUDITORIA_CAMBIOS', AUDIT_HEADERS);
+  if (sh.getLastRow() < 2) return { success: true, data: [] };
+  const values = sh.getDataRange().getValues();
+  const headers = values[0].map(String);
+  const rows = values.slice(1).map(function(row) {
+    const rec = {};
+    headers.forEach(function(h, i) { rec[h] = row[i]; });
+    rec.confirmed = true;
+    return rec;
+  }).filter(function(row) {
+    return session.role === 'admin' || row.Usuario === session.username;
+  }).slice(-20).reverse();
+  return { success: true, data: rows };
+}
+
+function createSession_(username, role, fullName) {
+  const token = Utilities.getUuid() + '-' + Utilities.getUuid();
+  const expires = new Date(Date.now() + 12 * 60 * 60 * 1000);
+  const ss = SpreadsheetApp.openById(SS_ID);
+  const sh = ensureSheet_(ss, 'SESIONES_APP', SESSION_HEADERS);
+  sh.appendRow([hash_(token), username, role || 'responsable', new Date(), expires, 'activa']);
+  return {
+    token: token,
+    username: username,
+    fullName: fullName || username,
+    role: role || 'responsable',
+    expiresAt: expires.toISOString()
+  };
+}
+
+function validateSession_(token) {
+  if (!token) throw new Error('Sesion requerida.');
+  const ss = SpreadsheetApp.openById(SS_ID);
+  const sh = ensureSheet_(ss, 'SESIONES_APP', SESSION_HEADERS);
+  if (sh.getLastRow() < 2) throw new Error('Sesion invalida.');
+  const values = sh.getDataRange().getValues();
+  const headers = values[0].map(String);
+  const idx = indexMap_(headers);
+  const tokenHash = hash_(token);
+  for (let i = values.length - 1; i >= 1; i--) {
+    const row = values[i];
+    if (row[idx.TokenHash] === tokenHash && row[idx.Estado] === 'activa') {
+      if (new Date(row[idx.Expira]).getTime() < Date.now()) throw new Error('Sesion vencida.');
+      return { username: row[idx.Usuario], role: row[idx.Rol], expiresAt: new Date(row[idx.Expira]).toISOString() };
+    }
+  }
+  throw new Error('Sesion invalida.');
+}
+
+function findUser_(username) {
+  username = normalizeUsername_(username);
+  if (!username) return null;
+  const ss = SpreadsheetApp.openById(SS_ID);
+  const sh = ensureSheet_(ss, 'USUARIOS_APP', AUTH_HEADERS);
+  if (sh.getLastRow() < 2) return null;
+  const values = sh.getDataRange().getValues();
+  const headers = values[0].map(String);
+  const idx = indexMap_(headers);
+  for (let i = 1; i < values.length; i++) {
+    if (normalizeUsername_(values[i][idx.Usuario]) === username) return rowRecord_(sh, values[i], headers, i + 1);
+  }
+  return null;
+}
+
+function findUserByEmail_(email) {
+  email = String(email || '').trim().toLowerCase();
+  if (!email) return null;
+  const ss = SpreadsheetApp.openById(SS_ID);
+  const sh = ensureSheet_(ss, 'USUARIOS_APP', AUTH_HEADERS);
+  if (sh.getLastRow() < 2) return null;
+  const values = sh.getDataRange().getValues();
+  const headers = values[0].map(String);
+  const idx = indexMap_(headers);
+  for (let i = 1; i < values.length; i++) {
+    if (String(values[i][idx.Correo] || '').trim().toLowerCase() === email) return rowRecord_(sh, values[i], headers, i + 1);
+  }
+  return null;
+}
+
+function rowRecord_(sheet, row, headers, rowNumber) {
+  const values = {};
+  const idx = indexMap_(headers);
+  headers.forEach(function(h, i) { values[h] = row[i]; });
+  return { sheet: sheet, row: rowNumber, values: values, index: idx };
+}
+
+function countUsers_() {
+  const ss = SpreadsheetApp.openById(SS_ID);
+  const sh = ensureSheet_(ss, 'USUARIOS_APP', AUTH_HEADERS);
+  return Math.max(0, sh.getLastRow() - 1);
+}
+
+function normalizeRecordInput_(data) {
+  const record = Object.assign({}, data || {});
+  const year = record.Anio || record.anio || record['Año'] || record['AÃ±o'] || record['A??o'] || '';
+  record.Anio = year;
+  record['Año'] = year;
+  record['AÃ±o'] = year;
+  record['A??o'] = year;
+  if (!record.Cod_Temporada && record.Temporada) record.Cod_Temporada = record.Temporada === 'Seca' ? 'DS' : 'RS';
+  return record;
+}
+
+function appendAudit_(username, action, objectName, id, pointId, year, season, summary, userAgent, origin) {
+  const ss = SpreadsheetApp.openById(SS_ID);
+  const sh = ensureSheet_(ss, 'AUDITORIA_CAMBIOS', AUDIT_HEADERS);
+  sh.appendRow([new Date(), username || '', action || '', objectName || '', id || '', pointId || '', year || '', season || '', summary || '', userAgent || '', origin || '']);
+}
+
+function summarizeRecord_(record) {
+  const measured = BD_HEADERS.filter(function(h) {
+    return record[h] !== undefined && record[h] !== null && record[h] !== '' &&
+      ['ID_Muestra','Punto_ID','Subcuenca','Estado_Punto','AÃ±o','Año','Anio','Temporada','Cod_Temporada','Fecha_Muestreo','Responsable','DL','FL','Total_Evaluados','Pct_Cumplimiento','Observaciones'].indexOf(h) < 0;
+  }).length;
+  return 'Carga ' + (record.Punto_ID || '') + ' ' + (record.Anio || '') + ' ' + (record.Cod_Temporada || '') + ' con ' + measured + ' parametro(s).';
+}
+
+function normalizeUsername_(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function hash_(text) {
+  const bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(text), Utilities.Charset.UTF_8);
+  return bytes.map(function(b) {
+    const v = b < 0 ? b + 256 : b;
+    return ('0' + v.toString(16)).slice(-2);
+  }).join('');
+}
+
+function indexMap_(headers) {
+  const idx = {};
+  headers.forEach(function(h, i) { idx[h] = i; });
+  return idx;
 }

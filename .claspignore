@@ -1,4 +1,5 @@
 data.json
+app/**
 extraer_data_json.py
 *.py
 *.md

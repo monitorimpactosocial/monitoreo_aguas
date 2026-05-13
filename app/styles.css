@@ -1480,6 +1480,175 @@ tr:hover td {
   overflow-wrap: anywhere;
 }
 
+.capture-hero {
+  margin-bottom: 14px;
+}
+
+.capture-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  gap: 14px;
+  margin-bottom: 14px;
+  align-items: start;
+}
+
+.auth-status {
+  display: grid;
+  gap: 5px;
+  margin: 12px 0;
+  padding: 12px;
+  background: var(--wash);
+  border: 1px solid var(--soft-line);
+  border-radius: 6px;
+}
+
+.auth-status strong {
+  color: var(--green-950);
+}
+
+.auth-status span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.auth-mode-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.auth-mode-buttons button,
+.capture-actions button,
+.auth-form button,
+.parameter-entry-head button {
+  min-height: 36px;
+  padding: 0 10px;
+  color: var(--green-950);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-weight: 900;
+}
+
+.auth-mode-buttons button.is-active,
+.capture-actions button,
+.auth-form button[type="submit"] {
+  color: #fff;
+  background: var(--green-850);
+  border-color: var(--green-850);
+}
+
+.auth-form,
+.capture-form fieldset {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.auth-form label,
+.capture-grid label,
+.parameter-entry-grid label,
+.wide-field {
+  display: grid;
+  gap: 6px;
+}
+
+.auth-form label span,
+.capture-grid label span,
+.parameter-entry-grid label span,
+.wide-field span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.auth-form input,
+.capture-grid input,
+.capture-grid select,
+.parameter-entry-grid input,
+.wide-field textarea {
+  width: 100%;
+  min-height: 40px;
+  padding: 9px 10px;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.wide-field textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+
+.capture-form fieldset:disabled {
+  opacity: 0.58;
+}
+
+.capture-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.parameter-entry-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 6px;
+  border-top: 1px solid var(--soft-line);
+}
+
+.parameter-entry-head strong {
+  display: block;
+  color: var(--green-950);
+}
+
+.parameter-entry-head span {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.parameter-entry-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  max-height: 420px;
+  overflow: auto;
+  padding: 10px;
+  background: #fbfdf9;
+  border: 1px solid var(--soft-line);
+  border-radius: 6px;
+}
+
+.capture-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.form-message {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.form-message[data-type="success"] {
+  color: var(--green-700);
+}
+
+.form-message[data-type="error"] {
+  color: var(--red);
+}
+
 .guide-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1537,6 +1706,9 @@ tr:hover td {
   .legacy-grid,
   .legacy-campaign-grid,
   .live-map-layout,
+  .capture-layout,
+  .capture-grid,
+  .parameter-entry-grid,
   .guide-grid,
   .source-grid,
   .rio-kpis,

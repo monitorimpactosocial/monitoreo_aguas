@@ -2,7 +2,9 @@
 
 Sistema web de monitoreo de calidad del agua superficial. Programa **PR-SA-F04** | Área de Sustentabilidad Ambiental.
 
-**App desplegada:** https://script.google.com/macros/s/AKfycbzoW7B-phIQv-QpcLXpVb91ivhYLjqQU5D0NI6PD--shXCsGpmBR0HIpybs5eTAL8wT-w/exec
+**Tablero publico:** https://monitorimpactosocial.github.io/monitoreo_aguas/
+
+**Backend Apps Script vigente:** https://script.google.com/macros/s/AKfycbx_nVf5X3Y1VBsfMXWmFLxFmS4Xl8YuJtBB28wmtdHKZfE1T-b2HDhuZoMX76s_b0NS4w/exec
 
 **Google Sheets (base de datos):** https://docs.google.com/spreadsheets/d/1VmBLNbeUCW1GtxrXz3zsUQl0HdRqc5SSUBdtMywql4U
 

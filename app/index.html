@@ -18,6 +18,7 @@
 
       <nav class="tabs" aria-label="Vistas principales">
         <button class="tab is-active" data-view="dashboard">Resumen</button>
+        <button class="tab" data-view="capture">Cargar datos</button>
         <button class="tab" data-view="rio">Río Paraguay</button>
         <button class="tab" data-view="evolution">Series</button>
         <button class="tab" data-view="compatibility">Calidad estadística</button>
@@ -123,6 +124,7 @@
           </div>
 
           <div class="advanced-actions">
+            <button class="tab utility-tab" data-view="capture">Cargar datos</button>
             <button id="sideCampaign" class="ghost">Por campaña</button>
             <button id="sideTime" class="ghost">En el tiempo</button>
             <button id="sideProgram" class="ghost">Evolución del programa</button>
@@ -351,6 +353,167 @@
                 <table id="dataDetailTable"></table>
               </div>
             </details>
+          </section>
+        </section>
+
+        <section class="view" id="capture">
+          <div class="context-card capture-hero">
+            <span class="eyebrow">Carga protegida</span>
+            <h1>Registrar nuevas mediciones</h1>
+            <p>Los responsables cargan datos sin tocar el libro en linea. La app autentica, envia la muestra al backend y registra auditoria de usuario, fecha, punto, campana y cambios.</p>
+          </div>
+
+          <div class="capture-layout">
+            <section class="panel auth-panel">
+              <div class="panel-head compact-head">
+                <div>
+                  <h1>Acceso de responsables <button class="info" data-note="auth">(i)</button></h1>
+                  <p>Primero registre usuario y contrasena. Luego use ese acceso para cargar o revisar sus cambios.</p>
+                </div>
+              </div>
+
+              <div id="authStatus" class="auth-status"></div>
+
+              <div class="auth-mode-buttons" aria-label="Modo de acceso">
+                <button type="button" class="is-active" data-auth-mode="login">Entrar</button>
+                <button type="button" data-auth-mode="register">Crear usuario</button>
+                <button type="button" data-auth-mode="recover">Recuperar</button>
+              </div>
+
+              <form id="loginForm" class="auth-form" data-auth-panel="login">
+                <label>
+                  <span>Usuario</span>
+                  <input name="username" autocomplete="username" placeholder="nombre.apellido" required />
+                </label>
+                <label>
+                  <span>Contrasena</span>
+                  <input name="password" type="password" autocomplete="current-password" minlength="6" required />
+                </label>
+                <button type="submit">Entrar y cargar</button>
+              </form>
+
+              <form id="registerForm" class="auth-form" data-auth-panel="register" hidden>
+                <label>
+                  <span>Usuario</span>
+                  <input name="username" autocomplete="username" placeholder="nombre.apellido" pattern="[A-Za-z0-9._-]{3,40}" required />
+                </label>
+                <label>
+                  <span>Nombre y apellido</span>
+                  <input name="fullName" autocomplete="name" required />
+                </label>
+                <label>
+                  <span>Correo institucional</span>
+                  <input name="email" type="email" autocomplete="email" required />
+                </label>
+                <label>
+                  <span>Contrasena</span>
+                  <input name="password" type="password" autocomplete="new-password" minlength="6" pattern="[A-Za-z0-9._-]{6,40}" required />
+                </label>
+                <button type="submit">Crear acceso</button>
+              </form>
+
+              <form id="recoverForm" class="auth-form" data-auth-panel="recover" hidden>
+                <label>
+                  <span>Usuario o correo</span>
+                  <input name="account" autocomplete="username" required />
+                </label>
+                <button type="button" id="requestResetCode" class="ghost">Enviar codigo</button>
+                <label>
+                  <span>Codigo recibido</span>
+                  <input name="code" autocomplete="one-time-code" />
+                </label>
+                <label>
+                  <span>Nueva contrasena</span>
+                  <input name="password" type="password" autocomplete="new-password" minlength="6" pattern="[A-Za-z0-9._-]{6,40}" />
+                </label>
+                <button type="submit">Cambiar contrasena</button>
+              </form>
+
+              <div id="authMessage" class="form-message" aria-live="polite"></div>
+            </section>
+
+            <section class="panel capture-panel">
+              <div class="panel-head compact-head">
+                <div>
+                  <h1>Nueva muestra <button class="info" data-note="capture">(i)</button></h1>
+                  <p>Complete una fila por punto, campana y temporada. Puede dejar vacios los parametros no medidos.</p>
+                </div>
+              </div>
+
+              <form id="captureForm" class="capture-form">
+                <fieldset id="captureFieldset" disabled>
+                  <div class="capture-grid">
+                    <label>
+                      <span>Punto de monitoreo</span>
+                      <select id="capturePoint" name="point" required></select>
+                    </label>
+                    <label>
+                      <span>Subcuenca / sistema</span>
+                      <input id="captureSubcuenca" name="subcuenca" readonly />
+                    </label>
+                    <label>
+                      <span>Ano</span>
+                      <input name="year" type="number" min="2021" max="2035" step="1" required />
+                    </label>
+                    <label>
+                      <span>Temporada</span>
+                      <select id="captureSeason" name="season" required>
+                        <option value="Lluviosa" data-code="RS">Lluviosa (RS)</option>
+                        <option value="Seca" data-code="DS">Seca (DS)</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span>Fecha de muestreo</span>
+                      <input name="date" type="date" />
+                    </label>
+                    <label>
+                      <span>Responsable</span>
+                      <input id="captureResponsible" name="responsible" />
+                    </label>
+                    <label>
+                      <span>Dentro de limite (DL)</span>
+                      <input name="dl" type="number" min="0" step="1" />
+                    </label>
+                    <label>
+                      <span>Fuera de limite (FL)</span>
+                      <input name="fl" type="number" min="0" step="1" />
+                    </label>
+                  </div>
+
+                  <div class="parameter-entry-head">
+                    <div>
+                      <strong>Parametros medidos</strong>
+                      <span>Use coma o punto decimal. Ejemplos: 7,2 - &lt;0,01 - ND.</span>
+                    </div>
+                    <button type="button" id="clearCaptureValues" class="ghost">Limpiar parametros</button>
+                  </div>
+                  <div id="parameterEntryGrid" class="parameter-entry-grid"></div>
+
+                  <label class="wide-field">
+                    <span>Observaciones</span>
+                    <textarea name="observations" rows="3" placeholder="Metodo, clima, anomalias de campo, observaciones del laboratorio o fuente documental."></textarea>
+                  </label>
+
+                  <div class="capture-actions">
+                    <button type="submit">Enviar al libro en linea</button>
+                    <span id="captureMessage" class="form-message" aria-live="polite"></span>
+                  </div>
+                </fieldset>
+              </form>
+            </section>
+          </div>
+
+          <section class="panel">
+            <div class="panel-head compact-head">
+              <div>
+                <h1>Auditoria de cargas</h1>
+                <p>Ultimas acciones confirmadas o enviadas desde esta sesion. <button class="info" data-note="audit">(i)</button></p>
+              </div>
+              <button id="refreshAudit" class="ghost">Actualizar auditoria</button>
+            </div>
+            <div class="table-wrap compact">
+              <table id="captureAuditTable"></table>
+            </div>
           </section>
         </section>
 

@@ -98,6 +98,18 @@ const notes = {
     title: "Edición segura",
     text: "El modo edición no modifica anexos ni Google Sheet. Guarda cambios en el navegador y permite exportar un JSON de ajustes para aplicar después con control de calidad.",
   },
+  auth: {
+    title: "Acceso y auditoria",
+    text: "Cada responsable crea su usuario una sola vez. La contrasena no se guarda como texto: el backend conserva un hash salteado en el libro en linea y usa sesiones temporales para registrar cargas y cambios.",
+  },
+  capture: {
+    title: "Carga de nuevas mediciones",
+    text: "La carga genera una fila operativa por punto, ano y temporada. Los parametros vacios no se interpretan como cero; quedan vacios para no crear datos falsos.",
+  },
+  audit: {
+    title: "Auditoria de cambios",
+    text: "Cada envio queda asociado a usuario, fecha, accion, punto, periodo y resumen. Esto permite saber quien cargo o corrigio informacion sin abrir el libro a edicion general.",
+  },
   rio: {
     title: "Río Paraguay",
     text: "Esta vista concentra los datos vinculados al Río Paraguay. La fuente principal es el libro de resultados compilados con hoja Comparación puntos_muestreo; también se listan anexos de Kruskal-Wallis, Shapiro y pesticidas asociados.",
@@ -159,8 +171,50 @@ const notes = {
 const pointTypes = ["Entrada", "Medio", "Salida", "Pozo", "No clasificado", "Sin clasificar"];
 const colors = ["#177346", "#b8423f", "#2f6fa3", "#d6a728", "#6b5aa6", "#00837a", "#c2682f", "#61727a"];
 const overrideKey = "paracel-water-overrides-v1";
+const authStorageKey = "paracel-water-auth-v1";
+const pendingCaptureKey = "paracel-water-pending-captures-v1";
+const apiUrlStorageKey = "paracel-water-api-url-v1";
+const defaultApiUrl = "https://script.google.com/macros/s/AKfycbx_nVf5X3Y1VBsfMXWmFLxFmS4Xl8YuJtBB28wmtdHKZfE1T-b2HDhuZoMX76s_b0NS4w/exec";
+const apiUrl = window.PARACEL_WATER_API_URL || localStorage.getItem(apiUrlStorageKey) || defaultApiUrl;
+const captureParameters = [
+  { key: "Temperatura", label: "Temperatura" },
+  { key: "Color", label: "Color" },
+  { key: "pH", label: "pH" },
+  { key: "Conductividad", label: "Conductividad" },
+  { key: "OD", label: "Oxigeno disuelto" },
+  { key: "Turbidez", label: "Turbidez" },
+  { key: "Mat_Flotantes", label: "Materiales flotantes" },
+  { key: "TDS", label: "TDS" },
+  { key: "Aceites_Grasas", label: "Aceites y grasas" },
+  { key: "DBO5", label: "DBO5" },
+  { key: "Fosforo_Total", label: "Fosforo total" },
+  { key: "Nitrogeno_Total", label: "Nitrogeno total" },
+  { key: "Nitratos", label: "Nitratos" },
+  { key: "Amoniaco", label: "Amoniaco" },
+  { key: "Nitritos", label: "Nitritos" },
+  { key: "Aluminio", label: "Aluminio" },
+  { key: "Hierro_Soluble", label: "Hierro soluble" },
+  { key: "Clorofila_A", label: "Clorofila A" },
+  { key: "Calcio", label: "Calcio" },
+  { key: "Potasio", label: "Potasio" },
+  { key: "SST", label: "SST" },
+  { key: "Magnesio", label: "Magnesio" },
+  { key: "Coliformes_Totales", label: "Coliformes totales" },
+  { key: "Coliformes_Fecales", label: "Coliformes fecales" },
+  { key: "E_coli", label: "E. coli" },
+  { key: "Glifosato", label: "Glifosato" },
+  { key: "AMPA", label: "AMPA" },
+  { key: "Tebuconazole", label: "Tebuconazole" },
+  { key: "Sulfluramida", label: "Sulfluramida" },
+  { key: "Glufosinato", label: "Glufosinato" },
+  { key: "Flumioxazin", label: "Flumioxazin" },
+  { key: "Fipronil", label: "Fipronil" },
+  { key: "Isoxaflutole", label: "Isoxaflutole" },
+  { key: "Haloxifop", label: "Haloxifop" },
+];
 
 let overrides = loadOverrides();
+let authState = loadAuthState();
 let activeView = "dashboard";
 let mapMode = "all";
 
@@ -239,6 +293,7 @@ init();
 function init() {
   populateFilters();
   buildChoiceControls();
+  initCaptureModule();
   bindEvents();
   renderGuide();
   const requestedView = new URLSearchParams(window.location.search).get("view") || window.location.hash.replace("#", "");
@@ -270,6 +325,17 @@ function bindEvents() {
   document.querySelector("#downloadOverrides").addEventListener("click", () => downloadJson(overrides, "ajustes_monitoreo_agua.json"));
   document.querySelector("#resetOverrides").addEventListener("click", resetOverrides);
   document.querySelector("#legacyMapFilter")?.addEventListener("change", renderLegacyDashboard);
+  document.querySelectorAll("[data-auth-mode]").forEach((button) => {
+    button.addEventListener("click", () => setAuthMode(button.dataset.authMode));
+  });
+  document.querySelector("#loginForm")?.addEventListener("submit", handleLogin);
+  document.querySelector("#registerForm")?.addEventListener("submit", handleRegister);
+  document.querySelector("#requestResetCode")?.addEventListener("click", requestResetCode);
+  document.querySelector("#recoverForm")?.addEventListener("submit", handlePasswordReset);
+  document.querySelector("#captureForm")?.addEventListener("submit", handleCaptureSubmit);
+  document.querySelector("#capturePoint")?.addEventListener("change", syncCapturePointMeta);
+  document.querySelector("#clearCaptureValues")?.addEventListener("click", clearCaptureParameterValues);
+  document.querySelector("#refreshAudit")?.addEventListener("click", refreshAuditTable);
   document.querySelectorAll("[data-map-mode]").forEach((button) => {
     button.addEventListener("click", () => {
       mapMode = button.dataset.mapMode || "all";
@@ -510,6 +576,7 @@ function renderAll() {
     renderDataTable(rows);
     renderDataDetailTable(rows);
   }
+  if (activeView === "capture") renderCaptureView();
   if (activeView === "legacy") renderLegacyDashboard();
   if (activeView === "edit") renderEditTable();
   syncChoiceControls();
@@ -1682,6 +1749,378 @@ function renderGuide() {
     .join("");
 }
 
+function initCaptureModule() {
+  renderCapturePointOptions();
+  renderCaptureParameterInputs();
+  syncCapturePointMeta();
+  renderAuthState();
+  renderCaptureAuditTable();
+}
+
+function renderCaptureView() {
+  renderAuthState();
+  renderCaptureAuditTable();
+}
+
+function renderCapturePointOptions() {
+  const select = document.querySelector("#capturePoint");
+  if (!select) return;
+  const points = buildPointCatalog(series);
+  select.innerHTML = points
+    .map((point) => `<option value="${escapeAttr(pointId(point))}">${escapeHtml(point.point)} | ${escapeHtml(point.water_body)} | ${escapeHtml(point.point_type || "Sin clasificar")}</option>`)
+    .join("");
+}
+
+function renderCaptureParameterInputs() {
+  const root = document.querySelector("#parameterEntryGrid");
+  if (!root) return;
+  root.innerHTML = captureParameters
+    .map((item) => `<label><span>${escapeHtml(item.label)}</span><input name="param_${escapeAttr(item.key)}" placeholder="valor" /></label>`)
+    .join("");
+}
+
+function syncCapturePointMeta() {
+  const point = capturePointMeta();
+  const subcuenca = document.querySelector("#captureSubcuenca");
+  if (subcuenca) subcuenca.value = point?.water_body || "";
+}
+
+function capturePointMeta() {
+  const select = document.querySelector("#capturePoint");
+  const id = select?.value || "";
+  return buildPointCatalog(series).find((point) => pointId(point) === id) || null;
+}
+
+function renderAuthState() {
+  const status = document.querySelector("#authStatus");
+  const fieldset = document.querySelector("#captureFieldset");
+  const responsible = document.querySelector("#captureResponsible");
+  const valid = isSessionUsable();
+  if (fieldset) fieldset.disabled = !valid;
+  if (responsible && valid && !responsible.value) responsible.value = authState.fullName || authState.username;
+  if (!status) return;
+  if (valid) {
+    status.innerHTML = `<strong>${escapeHtml(authState.fullName || authState.username)}</strong><span>${escapeHtml(authState.role || "responsable")} | sesion activa hasta ${escapeHtml(formatDateTime(authState.expiresAt))}</span><button type="button" id="logoutButton" class="ghost">Salir</button>`;
+    document.querySelector("#logoutButton")?.addEventListener("click", logout);
+  } else {
+    status.innerHTML = `<strong>Sin sesion activa</strong><span>Ingrese o cree un usuario para habilitar el formulario de carga.</span>`;
+  }
+}
+
+function setAuthMode(mode) {
+  document.querySelectorAll("[data-auth-mode]").forEach((button) => button.classList.toggle("is-active", button.dataset.authMode === mode));
+  document.querySelectorAll("[data-auth-panel]").forEach((panel) => {
+    panel.hidden = panel.dataset.authPanel !== mode;
+  });
+  setMessage("#authMessage", "");
+}
+
+async function handleLogin(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const username = normalizeUsername(form.username.value);
+  setMessage("#authMessage", "Validando acceso...");
+  try {
+    const passwordDigest = await credentialDigest(username, form.password.value);
+    const result = await apiJsonp("authLogin", { username, passwordDigest });
+    if (!result.success) throw new Error(result.error || "No se pudo iniciar sesion");
+    saveAuthState(result.session);
+    form.reset();
+    setMessage("#authMessage", "Acceso confirmado. Ya puede cargar datos.", "success");
+    renderAuthState();
+    refreshAuditTable();
+  } catch (err) {
+    setMessage("#authMessage", err.message || String(err), "error");
+  }
+}
+
+async function handleRegister(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const username = normalizeUsername(form.username.value);
+  setMessage("#authMessage", "Creando usuario...");
+  try {
+    const passwordDigest = await credentialDigest(username, form.password.value);
+    const result = await apiJsonp("authRegister", {
+      username,
+      passwordDigest,
+      fullName: form.fullName.value.trim(),
+      email: form.email.value.trim(),
+    });
+    if (!result.success) throw new Error(result.error || "No se pudo crear el usuario");
+    saveAuthState(result.session);
+    form.reset();
+    setAuthMode("login");
+    setMessage("#authMessage", "Usuario creado y sesion iniciada.", "success");
+    renderAuthState();
+    refreshAuditTable();
+  } catch (err) {
+    setMessage("#authMessage", err.message || String(err), "error");
+  }
+}
+
+async function requestResetCode() {
+  const form = document.querySelector("#recoverForm");
+  const account = form?.account.value.trim();
+  if (!account) {
+    setMessage("#authMessage", "Indique usuario o correo.", "error");
+    return;
+  }
+  setMessage("#authMessage", "Solicitando codigo de recuperacion...");
+  try {
+    const result = await apiJsonp("authRequestReset", { account });
+    if (!result.success) throw new Error(result.error || "No se pudo generar el codigo");
+    setMessage("#authMessage", result.message || "Codigo enviado al correo registrado.", "success");
+  } catch (err) {
+    setMessage("#authMessage", err.message || String(err), "error");
+  }
+}
+
+async function handlePasswordReset(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const account = form.account.value.trim();
+  const code = form.code.value.trim();
+  const password = form.password.value;
+  if (!account || !code || !password) {
+    setMessage("#authMessage", "Complete usuario/correo, codigo y nueva contrasena.", "error");
+    return;
+  }
+  setMessage("#authMessage", "Actualizando contrasena...");
+  try {
+    const usernameHint = normalizeUsername(account.includes("@") ? account.split("@")[0] : account);
+    const passwordDigest = await credentialDigest(usernameHint, password);
+    const result = await apiJsonp("authResetPassword", { account, code, passwordDigest });
+    if (!result.success) throw new Error(result.error || "No se pudo cambiar la contrasena");
+    form.reset();
+    setAuthMode("login");
+    setMessage("#authMessage", "Contrasena actualizada. Ingrese con el nuevo acceso.", "success");
+  } catch (err) {
+    setMessage("#authMessage", err.message || String(err), "error");
+  }
+}
+
+async function handleCaptureSubmit(event) {
+  event.preventDefault();
+  if (!isSessionUsable()) {
+    setMessage("#captureMessage", "Debe iniciar sesion antes de cargar.", "error");
+    renderAuthState();
+    return;
+  }
+  const form = event.currentTarget;
+  const record = buildCaptureRecord(form);
+  if (!record.Punto_ID || !record.Anio || !record.Temporada) {
+    setMessage("#captureMessage", "Punto, ano y temporada son obligatorios.", "error");
+    return;
+  }
+  setMessage("#captureMessage", "Enviando al libro en linea...");
+  try {
+    await apiPostNoCors("saveMeasurement", {
+      sessionToken: authState.token,
+      record,
+      client: {
+        app: "GitHub Pages",
+        userAgent: navigator.userAgent,
+        url: location.href,
+      },
+    });
+    addPendingCapture(record);
+    form.reset();
+    renderCaptureParameterInputs();
+    syncCapturePointMeta();
+    renderAuthState();
+    renderCaptureAuditTable();
+    setMessage("#captureMessage", "Carga enviada. La auditoria se actualizara al confirmar el backend.", "success");
+    setTimeout(refreshAuditTable, 2500);
+  } catch (err) {
+    setMessage("#captureMessage", err.message || String(err), "error");
+  }
+}
+
+function buildCaptureRecord(form) {
+  const data = new FormData(form);
+  const point = capturePointMeta();
+  const dl = valueOrBlank(data.get("dl"));
+  const fl = valueOrBlank(data.get("fl"));
+  const total = numericInput(dl) + numericInput(fl);
+  const pct = total > 0 ? Math.round((numericInput(dl) / total) * 1000) / 10 : "";
+  const season = data.get("season") || "";
+  const cod = season === "Seca" ? "DS" : "RS";
+  const record = {
+    Punto_ID: point?.point || "",
+    Subcuenca: data.get("subcuenca") || point?.water_body || "",
+    Estado_Punto: point?.point_type || "",
+    Anio: Number(data.get("year")),
+    Temporada: season,
+    Cod_Temporada: cod,
+    Fecha_Muestreo: data.get("date") || "",
+    Responsable: data.get("responsible") || authState.fullName || authState.username || "",
+    DL: dl,
+    FL: fl,
+    Total_Evaluados: total || "",
+    Pct_Cumplimiento: pct,
+    Observaciones: data.get("observations") || "",
+  };
+  captureParameters.forEach((param) => {
+    const value = valueOrBlank(data.get(`param_${param.key}`));
+    if (value !== "") record[param.key] = value;
+  });
+  return record;
+}
+
+function clearCaptureParameterValues() {
+  document.querySelectorAll("#parameterEntryGrid input").forEach((input) => {
+    input.value = "";
+  });
+}
+
+async function refreshAuditTable() {
+  if (!isSessionUsable()) {
+    renderCaptureAuditTable();
+    return;
+  }
+  try {
+    const result = await apiJsonp("recentAudit", { sessionToken: authState.token });
+    if (result.success && Array.isArray(result.data)) {
+      localStorage.setItem(pendingCaptureKey, JSON.stringify(result.data.map((row) => ({ ...row, confirmed: true }))));
+    }
+  } catch {
+    // Keep local pending queue when the backend is not reachable.
+  }
+  renderCaptureAuditTable();
+}
+
+function renderCaptureAuditTable() {
+  const table = document.querySelector("#captureAuditTable");
+  if (!table) return;
+  const rows = loadPendingCaptures();
+  renderTable("#captureAuditTable", ["Estado", "Fecha", "Usuario", "Accion", "Punto", "Periodo", "Resumen"], rows.slice(0, 12).map((row) => [
+    row.confirmed ? "Confirmado" : "Enviado",
+    escapeHtml(formatDateTime(row.timestamp || row.Timestamp || row.fecha)),
+    escapeHtml(row.username || row.Usuario || authState?.username || ""),
+    escapeHtml(row.action || row.Accion || "saveMeasurement"),
+    escapeHtml(row.point || row.Punto_ID || row.record?.Punto_ID || ""),
+    escapeHtml(row.period || row.Periodo || `${row.record?.Anio || ""} ${row.record?.Cod_Temporada || ""}`.trim()),
+    escapeHtml(row.summary || row.Resumen || row.record?.Observaciones || ""),
+  ]));
+}
+
+function addPendingCapture(record) {
+  const rows = loadPendingCaptures();
+  rows.unshift({
+    timestamp: new Date().toISOString(),
+    username: authState.username,
+    action: "saveMeasurement",
+    point: record.Punto_ID,
+    period: `${record.Anio} ${record.Cod_Temporada}`,
+    summary: record.Observaciones || "Nueva medicion enviada",
+    record,
+    confirmed: false,
+  });
+  localStorage.setItem(pendingCaptureKey, JSON.stringify(rows.slice(0, 30)));
+}
+
+function loadPendingCaptures() {
+  try {
+    return JSON.parse(localStorage.getItem(pendingCaptureKey)) || [];
+  } catch {
+    return [];
+  }
+}
+
+function saveAuthState(session) {
+  authState = session || null;
+  localStorage.setItem(authStorageKey, JSON.stringify(authState));
+}
+
+function loadAuthState() {
+  try {
+    return JSON.parse(localStorage.getItem(authStorageKey));
+  } catch {
+    return null;
+  }
+}
+
+function logout() {
+  authState = null;
+  localStorage.removeItem(authStorageKey);
+  renderAuthState();
+  renderCaptureAuditTable();
+}
+
+function isSessionUsable() {
+  return Boolean(authState?.token && (!authState.expiresAt || new Date(authState.expiresAt).getTime() > Date.now()));
+}
+
+function normalizeUsername(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+async function credentialDigest(username, password) {
+  return sha256Hex(password || "");
+}
+
+async function sha256Hex(text) {
+  const encoder = new TextEncoder();
+  const digest = await crypto.subtle.digest("SHA-256", encoder.encode(text));
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function apiJsonp(action, payload = {}) {
+  return new Promise((resolve, reject) => {
+    const callback = `paracelWaterCb_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const script = document.createElement("script");
+    const url = new URL(apiUrl);
+    url.searchParams.set("action", action);
+    url.searchParams.set("callback", callback);
+    url.searchParams.set("payload", JSON.stringify(payload));
+    const timeout = setTimeout(() => {
+      cleanup();
+      reject(new Error("El backend no respondio a tiempo."));
+    }, 18000);
+    function cleanup() {
+      clearTimeout(timeout);
+      delete window[callback];
+      script.remove();
+    }
+    window[callback] = (data) => {
+      cleanup();
+      resolve(data || {});
+    };
+    script.onerror = () => {
+      cleanup();
+      reject(new Error("No se pudo contactar el backend."));
+    };
+    script.src = url.toString();
+    document.head.append(script);
+  });
+}
+
+function apiPostNoCors(action, payload = {}) {
+  return fetch(apiUrl, {
+    method: "POST",
+    mode: "no-cors",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ action, ...payload }),
+  });
+}
+
+function setMessage(selector, text, type = "") {
+  const node = document.querySelector(selector);
+  if (!node) return;
+  node.textContent = text || "";
+  node.dataset.type = type;
+}
+
+function valueOrBlank(value) {
+  return value === null || value === undefined ? "" : String(value).trim();
+}
+
+function numericInput(value) {
+  const parsed = Number(String(value || "").replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 function renderEditTable() {
   renderTable("#editTable", ["Componente", "Medio", "Cauce", "Punto", "Clasificación", "Años", "Parámetros"], buildPointCatalog(filteredSeries()).map((row) => {
     const id = pointId(row);
@@ -1994,6 +2433,16 @@ function formatPercent(value) {
 
 function formatInt(value) {
   return new Intl.NumberFormat("es-PY", { maximumFractionDigits: 0 }).format(value || 0);
+}
+
+function formatDateTime(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return new Intl.DateTimeFormat("es-PY", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(date);
 }
 
 function formatCount(value) {
