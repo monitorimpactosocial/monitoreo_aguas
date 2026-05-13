@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="es">
   <head>
     <meta charset="utf-8" />
@@ -6,7 +6,84 @@
     <title>PARACEL | Monitoreo de Agua</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
-  <body>
+  <body class="auth-locked">
+    <section id="loginGate" class="login-gate" aria-label="Acceso al sistema">
+      <div class="login-brand">
+        <div class="leaf-mark" aria-hidden="true">P</div>
+        <div>
+          <strong>PARACEL</strong>
+          <span>Monitoreo de calidad de agua</span>
+        </div>
+      </div>
+
+      <div class="login-card">
+        <div class="login-copy">
+          <span class="eyebrow">Acceso requerido</span>
+          <h1>Ingrese para operar el sistema</h1>
+          <p>El tablero, la carga de datos y la auditoria se muestran solo despues de validar una sesion contra el libro en linea.</p>
+        </div>
+
+        <div id="gateAuthStatus" class="auth-status"></div>
+
+        <div class="auth-mode-buttons" aria-label="Modo de acceso">
+          <button type="button" class="is-active" data-auth-mode="login">Entrar</button>
+          <button type="button" data-auth-mode="register">Crear usuario</button>
+          <button type="button" data-auth-mode="recover">Recuperar</button>
+        </div>
+
+        <form id="gateLoginForm" class="auth-form" data-auth-panel="login" data-message="#gateAuthMessage">
+          <label>
+            <span>Usuario</span>
+            <input name="username" autocomplete="username" placeholder="nombre.apellido" required />
+          </label>
+          <label>
+            <span>Contrasena</span>
+            <input name="password" type="password" autocomplete="current-password" minlength="6" required />
+          </label>
+          <button type="submit">Entrar al tablero</button>
+        </form>
+
+        <form id="gateRegisterForm" class="auth-form" data-auth-panel="register" data-message="#gateAuthMessage" hidden>
+          <label>
+            <span>Usuario</span>
+            <input name="username" autocomplete="username" placeholder="nombre.apellido" pattern="[A-Za-z0-9._-]{3,40}" required />
+          </label>
+          <label>
+            <span>Nombre y apellido</span>
+            <input name="fullName" autocomplete="name" required />
+          </label>
+          <label>
+            <span>Correo institucional</span>
+            <input name="email" type="email" autocomplete="email" required />
+          </label>
+          <label>
+            <span>Contrasena</span>
+            <input name="password" type="password" autocomplete="new-password" minlength="6" pattern="[A-Za-z0-9._-]{6,40}" required />
+          </label>
+          <button type="submit">Crear acceso y entrar</button>
+        </form>
+
+        <form id="gateRecoverForm" class="auth-form" data-auth-panel="recover" data-message="#gateAuthMessage" hidden>
+          <label>
+            <span>Usuario o correo</span>
+            <input name="account" autocomplete="username" required />
+          </label>
+          <button type="button" class="ghost" data-reset-code>Enviar codigo</button>
+          <label>
+            <span>Codigo recibido</span>
+            <input name="code" autocomplete="one-time-code" />
+          </label>
+          <label>
+            <span>Nueva contrasena</span>
+            <input name="password" type="password" autocomplete="new-password" minlength="6" pattern="[A-Za-z0-9._-]{6,40}" />
+          </label>
+          <button type="submit">Cambiar contrasena</button>
+        </form>
+
+        <div id="gateAuthMessage" class="form-message" aria-live="polite"></div>
+      </div>
+    </section>
+
     <header class="app-header">
       <div class="brand">
         <div class="leaf-mark" aria-hidden="true">P</div>
@@ -18,12 +95,12 @@
 
       <nav class="tabs" aria-label="Vistas principales">
         <button class="tab is-active" data-view="dashboard">Resumen</button>
-        <button class="tab" data-view="capture">Cargar datos</button>
-        <button class="tab" data-view="rio">Río Paraguay</button>
+        <button class="tab" data-view="capture">Carga guiada</button>
+        <button class="tab" data-view="rio">RÃ­o Paraguay</button>
         <button class="tab" data-view="evolution">Series</button>
-        <button class="tab" data-view="compatibility">Calidad estadística</button>
+        <button class="tab" data-view="compatibility">Calidad estadÃ­stica</button>
         <button class="tab" data-view="data">Fuentes</button>
-        <button class="tab" data-view="legacy">Primera versión</button>
+        <button class="tab" data-view="methodology">Metodologia</button>
       </nav>
     </header>
 
@@ -32,11 +109,11 @@
         <div class="control-intro">
           <div>
             <span class="eyebrow">Consulta guiada</span>
-            <h1>Filtros de análisis</h1>
-            <p>Seleccione el sistema, los puntos, el periodo y la lectura estadística. Todo el tablero responde a este panel.</p>
+            <h1>Filtros de anÃ¡lisis</h1>
+            <p>Seleccione el sistema, los puntos, el periodo y la lectura estadÃ­stica. Todo el tablero responde a este panel.</p>
           </div>
           <div class="control-actions">
-            <button id="quickRio" class="ghost">Río Paraguay</button>
+            <button id="quickRio" class="ghost">RÃ­o Paraguay</button>
             <button id="quickIron" class="ghost">Hierro soluble</button>
             <button id="clearFilters">Limpiar</button>
           </div>
@@ -51,13 +128,13 @@
             <select id="waterBodyFilter" class="native-select"></select>
           </label>
           <label>
-            <span>Parámetros <button class="info" data-note="parameterFilterNote">(i)</button></span>
-            <div id="parameterChoices" class="choice-board scroll" aria-label="Elegir parámetros"></div>
+            <span>ParÃ¡metros <button class="info" data-note="parameterFilterNote">(i)</button></span>
+            <div id="parameterChoices" class="choice-board scroll" aria-label="Elegir parÃ¡metros"></div>
             <select id="parameterFilter" class="native-select" multiple size="4"></select>
           </label>
           <label>
-            <span>Años <button class="info" data-note="yearFilterNote">(i)</button></span>
-            <div id="yearChoices" class="choice-board mini" aria-label="Elegir años"></div>
+            <span>AÃ±os <button class="info" data-note="yearFilterNote">(i)</button></span>
+            <div id="yearChoices" class="choice-board mini" aria-label="Elegir aÃ±os"></div>
             <select id="yearFilter" class="native-select" multiple size="4"></select>
           </label>
           <label>
@@ -89,7 +166,7 @@
         </div>
 
         <details class="advanced-box">
-          <summary>Opciones avanzadas, trazabilidad y administración</summary>
+          <summary>Opciones avanzadas, trazabilidad y administraciÃ³n</summary>
           <div class="advanced-grid">
             <label>
               <span>Componente <button class="info" data-note="componentFilterNote">(i)</button></span>
@@ -108,7 +185,7 @@
             </label>
             <label>
               <span>Lectura <button class="info" data-note="approachFilterNote">(i)</button></span>
-              <div id="approachChoices" class="choice-board mini" aria-label="Elegir enfoque de análisis"></div>
+              <div id="approachChoices" class="choice-board mini" aria-label="Elegir enfoque de anÃ¡lisis"></div>
               <select id="approachFilter" class="native-select" multiple size="3"></select>
             </label>
             <label>
@@ -117,19 +194,20 @@
               <select id="flowFilter" class="native-select"></select>
             </label>
             <label>
-              <span>Alerta por desvío <button class="info" data-note="deviationLimitNote">(i)</button></span>
+              <span>Alerta por desvÃ­o <button class="info" data-note="deviationLimitNote">(i)</button></span>
               <input id="deviationLimit" type="range" min="1" max="4" step="0.5" value="2" />
-              <span id="deviationLabel">±2 DE</span>
+              <span id="deviationLabel">Â±2 DE</span>
             </label>
           </div>
 
           <div class="advanced-actions">
-            <button class="tab utility-tab" data-view="capture">Cargar datos</button>
-            <button id="sideCampaign" class="ghost">Por campaña</button>
+            <button class="tab utility-tab" data-view="capture">Carga guiada</button>
+            <button id="sideCampaign" class="ghost">Por campaÃ±a</button>
             <button id="sideTime" class="ghost">En el tiempo</button>
-            <button id="sideProgram" class="ghost">Evolución del programa</button>
+            <button id="sideProgram" class="ghost">EvoluciÃ³n del programa</button>
             <button id="exportFilteredCsv">Exportar CSV</button>
             <button id="exportDatasetJson">Exportar JSON</button>
+            <button class="tab utility-tab" data-view="methodology">Metodologia</button>
             <button class="tab utility-tab" data-view="guide">Ayuda de lectura</button>
             <button class="tab utility-tab" data-view="edit">Ajustar metadatos</button>
           </div>
@@ -138,7 +216,7 @@
 
       <section class="workspace" aria-label="Resultados del monitoreo">
         <section id="notePanel" class="note-panel" hidden>
-          <button id="closeNote" aria-label="Cerrar nota">×</button>
+          <button id="closeNote" aria-label="Cerrar nota">Ã—</button>
           <strong id="noteTitle"></strong>
           <p id="noteText"></p>
         </section>
@@ -148,7 +226,7 @@
           <div class="context-card">
             <span class="eyebrow">Resumen ejecutivo</span>
             <h1>Monitoreo de agua</h1>
-            <p>Lectura ejecutiva del filtro actual: cobertura, comparabilidad, señales de cambio y puntos que requieren revisión técnica.</p>
+            <p>Lectura ejecutiva del filtro actual: cobertura, comparabilidad, seÃ±ales de cambio y puntos que requieren revisiÃ³n tÃ©cnica.</p>
           </div>
 
           <div class="metric-grid">
@@ -163,7 +241,7 @@
               <small>sitios dentro del filtro</small>
             </article>
             <article class="metric">
-              <span>Parámetros <button class="info" data-note="parameters">(i)</button></span>
+              <span>ParÃ¡metros <button class="info" data-note="parameters">(i)</button></span>
               <strong id="metricParams">0</strong>
               <small>variables monitoreadas</small>
             </article>
@@ -177,9 +255,9 @@
           <section class="panel analyst-panel">
             <div class="panel-head compact-head">
               <div>
-                <span class="eyebrow">Diagnóstico del filtro</span>
-                <h1>Qué dice la selección actual</h1>
-                <p>Resumen automático para evitar leer series aisladas como conclusión ambiental. <button class="info" data-note="reading">(i)</button></p>
+                <span class="eyebrow">DiagnÃ³stico del filtro</span>
+                <h1>QuÃ© dice la selecciÃ³n actual</h1>
+                <p>Resumen automÃ¡tico para evitar leer series aisladas como conclusiÃ³n ambiental. <button class="info" data-note="reading">(i)</button></p>
               </div>
             </div>
             <div id="analystBrief" class="analyst-grid"></div>
@@ -202,19 +280,19 @@
           <section class="panel chart-panel">
             <div class="panel-head">
               <div>
-                <h1>Evolución filtrada</h1>
-                <p>El gráfico muestra tendencia. Si se mezclan parámetros con unidades distintas, usa base 100. <button class="info" data-note="chart">(i)</button></p>
+                <h1>EvoluciÃ³n filtrada</h1>
+                <p>El grÃ¡fico muestra tendencia. Si se mezclan parÃ¡metros con unidades distintas, usa base 100. <button class="info" data-note="chart">(i)</button></p>
               </div>
               <div id="chartMode" class="badge">modo</div>
             </div>
-            <svg id="trendChart" role="img" aria-label="Gráfico de evolución"></svg>
+            <svg id="trendChart" role="img" aria-label="GrÃ¡fico de evoluciÃ³n"></svg>
           </section>
 
           <section class="panel recovered-panel">
             <div class="panel-head compact-head">
               <div>
                 <h1>Figuras complementarias</h1>
-                <p>Recupera la lectura visual amplia de la versión anterior, sin cargar de nuevo la pantalla principal.</p>
+                <p>Recupera la lectura visual amplia de la versiÃ³n anterior, sin cargar de nuevo la pantalla principal.</p>
               </div>
             </div>
             <div class="figure-grid">
@@ -223,11 +301,11 @@
                 <div id="pointTypeFigure"></div>
               </article>
               <article class="figure-card">
-                <h2>Comparabilidad por año</h2>
+                <h2>Comparabilidad por aÃ±o</h2>
                 <div id="yearFigure"></div>
               </article>
               <article class="figure-card">
-                <h2>Parámetros más visibles</h2>
+                <h2>ParÃ¡metros mÃ¡s visibles</h2>
                 <div id="parameterFigure"></div>
               </article>
             </div>
@@ -236,13 +314,13 @@
           <div class="insight-grid">
             <section class="panel">
               <div class="panel-head compact-head">
-                <h2>Lectura rápida <button class="info" data-note="reading">(i)</button></h2>
+                <h2>Lectura rÃ¡pida <button class="info" data-note="reading">(i)</button></h2>
               </div>
               <div id="readingSummary" class="reading-summary"></div>
             </section>
             <section class="panel">
               <div class="panel-head compact-head">
-                <h2>Desvíos a revisar</h2>
+                <h2>DesvÃ­os a revisar</h2>
               </div>
               <div id="alertList" class="alert-list"></div>
             </section>
@@ -252,9 +330,9 @@
         <section class="view" id="rio">
           <div class="context-card">
             <span class="eyebrow">Vista focalizada</span>
-            <h1>Río Paraguay</h1>
-            <p>Concentra los puntos FW01-PY, FW02-PY y FW03-PY, sus fuentes y la clasificación entrada, intermedio y salida.</p>
-            <button id="forceRioView">Aplicar filtro Río Paraguay</button>
+            <h1>RÃ­o Paraguay</h1>
+            <p>Concentra los puntos FW01-PY, FW02-PY y FW03-PY, sus fuentes y la clasificaciÃ³n entrada, intermedio y salida.</p>
+            <button id="forceRioView">Aplicar filtro RÃ­o Paraguay</button>
           </div>
           <div class="rio-kpis" id="rioKpis"></div>
           <details class="panel source-details">
@@ -264,7 +342,7 @@
           <section class="panel">
             <div class="panel-head">
               <div>
-                <h1>Datos del Río Paraguay</h1>
+                <h1>Datos del RÃ­o Paraguay</h1>
                 <p>Tabla resumida del filtro actual. <button class="info" data-note="rio">(i)</button></p>
               </div>
             </div>
@@ -273,7 +351,7 @@
             </div>
           </section>
           <details class="panel detail-block">
-            <summary>Ver tabla técnica completa recuperada</summary>
+            <summary>Ver tabla tÃ©cnica completa recuperada</summary>
             <div class="table-wrap">
               <table id="rioDetailTable"></table>
             </div>
@@ -284,19 +362,19 @@
           <section class="panel chart-panel">
             <div class="panel-head compact-head">
               <div>
-                <span class="eyebrow">Evolución visual</span>
+                <span class="eyebrow">EvoluciÃ³n visual</span>
                 <h1>Series filtradas</h1>
-                <p>La figura responde al mismo filtro global de cauce, punto, parámetro, año y entrada/salida. <button class="info" data-note="series">(i)</button></p>
+                <p>La figura responde al mismo filtro global de cauce, punto, parÃ¡metro, aÃ±o y entrada/salida. <button class="info" data-note="series">(i)</button></p>
               </div>
               <div id="seriesChartMode" class="badge">modo</div>
             </div>
-            <svg id="seriesTrendChart" role="img" aria-label="Gráfico de series filtradas"></svg>
+            <svg id="seriesTrendChart" role="img" aria-label="GrÃ¡fico de series filtradas"></svg>
           </section>
           <section class="panel">
             <div class="panel-head">
               <div>
-                <h1>Series y variación</h1>
-                <p>Use esta matriz cuando necesite revisar valores, bases y diferencias con más detalle. <button class="info" data-note="matrix">(i)</button></p>
+                <h1>Series y variaciÃ³n</h1>
+                <p>Use esta matriz cuando necesite revisar valores, bases y diferencias con mÃ¡s detalle. <button class="info" data-note="matrix">(i)</button></p>
               </div>
             </div>
             <div class="table-wrap">
@@ -304,7 +382,7 @@
             </div>
           </section>
           <details class="panel detail-block">
-            <summary>Ver matriz técnica completa recuperada</summary>
+            <summary>Ver matriz tÃ©cnica completa recuperada</summary>
             <div class="table-wrap">
               <table id="evolutionDetailTable"></table>
             </div>
@@ -315,7 +393,7 @@
           <div class="qa-grid">
             <section class="panel">
               <h1>Compatibilidad de puntos <button class="info" data-note="compatibility">(i)</button></h1>
-              <p>Indica qué puntos tienen datos suficientes para comparar sin sobrerrepresentar muestras pequeñas.</p>
+              <p>Indica quÃ© puntos tienen datos suficientes para comparar sin sobrerrepresentar muestras pequeÃ±as.</p>
               <div class="table-wrap">
                 <table id="pointCompatibilityTable"></table>
               </div>
@@ -327,7 +405,7 @@
               </details>
             </section>
             <section class="panel">
-              <h1>Pruebas estadísticas <button class="info" data-note="statistics">(i)</button></h1>
+              <h1>Pruebas estadÃ­sticas <button class="info" data-note="statistics">(i)</button></h1>
               <div id="statSummary" class="stat-summary"></div>
               <div class="table-wrap compact">
                 <table id="statTestsTable"></table>
@@ -364,72 +442,24 @@
           </div>
 
           <div class="capture-layout">
-            <section class="panel auth-panel">
+            <section class="panel capture-guide-panel">
               <div class="panel-head compact-head">
                 <div>
-                  <h1>Acceso de responsables <button class="info" data-note="auth">(i)</button></h1>
-                  <p>Primero registre usuario y contrasena. Luego use ese acceso para cargar o revisar sus cambios.</p>
+                  <h1>Como completar una carga <button class="info" data-note="capture">(i)</button></h1>
+                  <p>Esta vista no reemplaza el criterio tecnico: ordena la carga para que el libro quede auditable y no se rompan formulas ni historicos.</p>
                 </div>
               </div>
-
               <div id="authStatus" class="auth-status"></div>
-
-              <div class="auth-mode-buttons" aria-label="Modo de acceso">
-                <button type="button" class="is-active" data-auth-mode="login">Entrar</button>
-                <button type="button" data-auth-mode="register">Crear usuario</button>
-                <button type="button" data-auth-mode="recover">Recuperar</button>
+              <ol class="capture-steps">
+                <li><strong>Seleccione el punto.</strong><span>El sistema completa la subcuenca o cauce asociado.</span></li>
+                <li><strong>Defina ano y temporada.</strong><span>Use Lluviosa (RS) o Seca (DS) segun la campana.</span></li>
+                <li><strong>Cargue solo lo medido.</strong><span>Un campo vacio queda vacio; no se convierte en cero.</span></li>
+                <li><strong>Envie y audite.</strong><span>La fila va al libro en linea y queda asociada a su usuario.</span></li>
+              </ol>
+              <div class="capture-rule">
+                <strong>Regla clave</strong>
+                <span>Si el resultado es menor al limite de deteccion, escriba el texto recibido del laboratorio, por ejemplo &lt;0,01 o ND.</span>
               </div>
-
-              <form id="loginForm" class="auth-form" data-auth-panel="login">
-                <label>
-                  <span>Usuario</span>
-                  <input name="username" autocomplete="username" placeholder="nombre.apellido" required />
-                </label>
-                <label>
-                  <span>Contrasena</span>
-                  <input name="password" type="password" autocomplete="current-password" minlength="6" required />
-                </label>
-                <button type="submit">Entrar y cargar</button>
-              </form>
-
-              <form id="registerForm" class="auth-form" data-auth-panel="register" hidden>
-                <label>
-                  <span>Usuario</span>
-                  <input name="username" autocomplete="username" placeholder="nombre.apellido" pattern="[A-Za-z0-9._-]{3,40}" required />
-                </label>
-                <label>
-                  <span>Nombre y apellido</span>
-                  <input name="fullName" autocomplete="name" required />
-                </label>
-                <label>
-                  <span>Correo institucional</span>
-                  <input name="email" type="email" autocomplete="email" required />
-                </label>
-                <label>
-                  <span>Contrasena</span>
-                  <input name="password" type="password" autocomplete="new-password" minlength="6" pattern="[A-Za-z0-9._-]{6,40}" required />
-                </label>
-                <button type="submit">Crear acceso</button>
-              </form>
-
-              <form id="recoverForm" class="auth-form" data-auth-panel="recover" hidden>
-                <label>
-                  <span>Usuario o correo</span>
-                  <input name="account" autocomplete="username" required />
-                </label>
-                <button type="button" id="requestResetCode" class="ghost">Enviar codigo</button>
-                <label>
-                  <span>Codigo recibido</span>
-                  <input name="code" autocomplete="one-time-code" />
-                </label>
-                <label>
-                  <span>Nueva contrasena</span>
-                  <input name="password" type="password" autocomplete="new-password" minlength="6" pattern="[A-Za-z0-9._-]{6,40}" />
-                </label>
-                <button type="submit">Cambiar contrasena</button>
-              </form>
-
-              <div id="authMessage" class="form-message" aria-live="polite"></div>
             </section>
 
             <section class="panel capture-panel">
@@ -517,128 +547,62 @@
           </section>
         </section>
 
-        <section class="view" id="legacy">
-          <div class="context-card">
-            <span class="eyebrow">Recuperado de la primera versión</span>
-            <h1>Tablero original de cumplimiento</h1>
-            <p>Esta vista recupera las figuras y tablas iniciales del repositorio: campañas 2021-2025, subcuencas, parámetros con incumplimientos, puntos de monitoreo y mapa operativo.</p>
+        <section class="view" id="methodology">
+          <div class="context-card methodology-hero">
+            <span class="eyebrow">Metodologia del sistema</span>
+            <h1>Como se construye, valida e interpreta el monitoreo</h1>
+            <p>Esta vista documenta la logica completa del tablero: fuentes, carga, clasificacion territorial, comparabilidad, calculos estadisticos, limites de interpretacion y gobierno de datos.</p>
           </div>
 
-          <div class="metric-grid">
-            <article class="metric">
-              <span>Registros base</span>
-              <strong id="legacyTotal">0</strong>
-              <small>desde data.json</small>
+          <div class="methodology-grid">
+            <article class="panel methodology-card">
+              <h2>1. Proposito y alcance</h2>
+              <p>El sistema organiza informacion de calidad de agua para seguimiento ambiental, control operativo y lectura ejecutiva. No convierte automaticamente una diferencia numerica en impacto causal: primero revisa cobertura, punto, temporada, n, desviacion, fuente y comparabilidad.</p>
             </article>
-            <article class="metric">
-              <span>Puntos</span>
-              <strong id="legacyPoints">0</strong>
-              <small>activos/históricos</small>
+            <article class="panel methodology-card">
+              <h2>2. Fuentes de informacion</h2>
+              <p>La base publicada usa una capa JSON normalizada para que el tablero cargue rapido. El backend Apps Script recibe nuevas mediciones en el libro en linea y mantiene hojas operativas: `BD_PRINCIPAL`, `PUNTOS`, `USUARIOS_APP`, `SESIONES_APP` y `AUDITORIA_CAMBIOS`.</p>
             </article>
-            <article class="metric">
-              <span>Cumplimiento</span>
-              <strong id="legacyPct">0%</strong>
-              <small>promedio ponderado</small>
+            <article class="panel methodology-card">
+              <h2>3. Puntos y clasificacion territorial</h2>
+              <p>Los puntos se agrupan por componente, medio, cauce o sistema, y tipo de punto. La regla operativa del proyecto es rojo igual entrada, amarillo igual intermedio y verde igual salida. Rio Paraguay se lee con entrada, medio y salida; arroyos y pozos se mantienen como sistemas separados.</p>
             </article>
-            <article class="metric">
-              <span>Campañas</span>
-              <strong id="legacyCampaigns">10</strong>
-              <small>2021-2025</small>
+            <article class="panel methodology-card">
+              <h2>4. Carga de datos</h2>
+              <p>Cada carga representa una muestra o campana para un punto, ano y temporada. Los parametros no medidos quedan vacios; no se completan como cero. Los textos de laboratorio como `&lt;0,01`, `ND` o `S/D` se preservan para trazabilidad.</p>
             </article>
-          </div>
-
-          <div class="legacy-grid">
-            <section class="panel legacy-wide">
-              <div class="panel-head compact-head">
-                <div>
-                  <h1>% Cumplimiento por campaña</h1>
-                  <p>Figura original reconstruida desde la serie histórica RS/DS.</p>
-                </div>
-              </div>
-              <div id="legacyCumplFigure" class="legacy-chart"></div>
-            </section>
-
-            <section class="panel">
-              <div class="panel-head compact-head">
-                <div>
-                  <h1>Cumplimiento por subcuenca</h1>
-                  <p>Agregado por DL/FL de los registros legado.</p>
-                </div>
-              </div>
-              <div id="legacySubFigure" class="legacy-chart small"></div>
-            </section>
-
-            <section class="panel">
-              <div class="panel-head compact-head">
-                <div>
-                  <h1>Parámetros con mayor incumplimiento</h1>
-                  <p>Frecuencia contra límites de la primera versión.</p>
-                </div>
-              </div>
-              <div id="legacyParamFigure" class="legacy-chart"></div>
-            </section>
-
-            <section class="panel">
-              <div class="panel-head compact-head">
-                <div>
-                  <h1>Último % cumplimiento por punto</h1>
-                  <p>Ranking de puntos con último valor disponible.</p>
-                </div>
-              </div>
-              <div id="legacyPointFigure" class="legacy-chart"></div>
-            </section>
-
-            <section class="panel legacy-wide">
-              <div class="panel-head compact-head">
-                <div>
-                  <h1>Mapa de puntos de monitoreo</h1>
-                  <p>Reconstrucción estática del mapa inicial con colores por cumplimiento.</p>
-                </div>
-                <div id="legacyMapChoices" class="choice-board mini legacy-map-choice" aria-label="Filtrar mapa legado"></div>
-                <select id="legacyMapFilter" class="native-select" aria-label="Filtrar mapa legado">
-                  <option value="all">Todos los puntos</option>
-                  <option value="Negla">Negla</option>
-                  <option value="Napegue">Napegue</option>
-                  <option value="Trementina">Trementina</option>
-                  <option value="Hermosa">Hermosa</option>
-                  <option value="Zapiquem">Zapiquem</option>
-                  <option value="Itasilla">Itasilla</option>
-                  <option value="Pitanohaga">Pitanohaga</option>
-                  <option value="Aquidaban">Aquidaban</option>
-                </select>
-              </div>
-              <div id="legacyMap" class="legacy-map"></div>
-              <div class="legacy-legend">
-                <span><i class="ok"></i>≥85% alto</span>
-                <span><i class="warn"></i>70-84% medio</span>
-                <span><i class="bad"></i>&lt;70% bajo</span>
-                <span><i class="none"></i>sin datos</span>
-              </div>
-            </section>
-
-            <section class="panel legacy-wide">
-              <div class="panel-head compact-head">
-                <div>
-                  <h1>Resumen histórico de campañas</h1>
-                  <p>Tabla original de campañas documentadas.</p>
-                </div>
-              </div>
-              <div class="table-wrap">
-                <table id="legacyHistoricoTable"></table>
-              </div>
-            </section>
-
-            <section class="panel legacy-wide">
-              <div class="panel-head compact-head">
-                <div>
-                  <h1>Últimos registros</h1>
-                  <p>Tabla equivalente a la primera pantalla de registro.</p>
-                </div>
-              </div>
-              <div class="table-wrap">
-                <table id="legacyLastRecords"></table>
-              </div>
-            </section>
+            <article class="panel methodology-card">
+              <h2>5. Seguridad y auditoria</h2>
+              <p>El acceso es obligatorio. El primer usuario registrado queda como administrador y los siguientes como responsables. Las contrasenas se guardan con hash salteado, las sesiones vencen y cada carga registra usuario, fecha, accion, punto, periodo, resumen y origen.</p>
+            </article>
+            <article class="panel methodology-card">
+              <h2>6. Series e indicadores</h2>
+              <p>Una serie combina componente, medio, cauce, punto, parametro y periodo. La app calcula cobertura, cantidad de puntos, cantidad de parametros, registros comparables, alertas por desviacion y cambios porcentuales frente a linea de base cuando existe soporte suficiente.</p>
+            </article>
+            <article class="panel methodology-card">
+              <h2>7. Lineas de base</h2>
+              <p>Las referencias principales son 2021 como linea historica y 2023 como referencia reciente cuando existen datos del mismo punto y parametro. La diferencia porcentual se interpreta junto con n, desviacion estandar y continuidad del punto.</p>
+            </article>
+            <article class="panel methodology-card">
+              <h2>8. Comparabilidad</h2>
+              <p>Un punto puede tener datos en muchos anos y aun asi no ser estrictamente comparable si cambio de ubicacion, si el n es bajo o si no existe el mismo parametro. El filtro de comparables reduce lecturas enganosas y prioriza puntos con soporte minimo.</p>
+            </article>
+            <article class="panel methodology-card">
+              <h2>9. Estadistica para muestras pequenas</h2>
+              <p>El tablero distingue datos referenciales de evidencia comparable. Cuando hay muestras pequenas, se priorizan pruebas no parametricas o lectura cautelosa. Shapiro-Wilk evalua normalidad, ANOVA compara medias si corresponde y Kruskal-Wallis compara grupos sin exigir normalidad.</p>
+            </article>
+            <article class="panel methodology-card">
+              <h2>10. Alertas por desviacion</h2>
+              <p>La alerta por desviacion usa el cambio frente a base dividido por la desviacion estandar disponible. Sirve para priorizar revision tecnica; no prueba por si sola una causa. El umbral del panel lateral ajusta la sensibilidad.</p>
+            </article>
+            <article class="panel methodology-card">
+              <h2>11. Lectura del mapa</h2>
+              <p>El mapa permite entender posicion, cauce, tipo de punto y gradientes entrada-medio-salida. Al hacer clic en un punto se filtran todas las vistas para evitar mezclar sistemas no comparables.</p>
+            </article>
+            <article class="panel methodology-card">
+              <h2>12. Como interpretar resultados</h2>
+              <p>La lectura correcta sigue este orden: confirmar fuente, revisar filtros, verificar n y comparabilidad, mirar tendencia, contrastar alertas, revisar tabla tecnica y recien despues redactar una conclusion ambiental.</p>
+            </article>
           </div>
         </section>
 
@@ -647,7 +611,7 @@
             <div class="panel-head">
               <div>
                 <h1>Ayuda de lectura</h1>
-                <p>Glosario breve para entender métricas, comparabilidad y criterios estadísticos.</p>
+                <p>Glosario breve para entender mÃ©tricas, comparabilidad y criterios estadÃ­sticos.</p>
               </div>
             </div>
             <div class="guide-grid" id="guideGrid"></div>
@@ -659,7 +623,7 @@
             <div class="panel-head">
               <div>
                 <h1>Ajuste seguro de metadatos</h1>
-                <p>Permite ajustar clasificaciones de puntos en esta sesión sin modificar anexos ni Google Sheet. <button class="info" data-note="edit">(i)</button></p>
+                <p>Permite ajustar clasificaciones de puntos en esta sesiÃ³n sin modificar anexos ni Google Sheet. <button class="info" data-note="edit">(i)</button></p>
               </div>
               <div class="control-actions">
                 <button id="downloadOverrides">Exportar ajustes</button>
@@ -668,7 +632,7 @@
             </div>
             <div class="edit-note">
               <strong>No toca la fuente:</strong>
-              <span>Los ajustes quedan en el navegador y pueden exportarse como JSON para revisión controlada.</span>
+              <span>Los ajustes quedan en el navegador y pueden exportarse como JSON para revisiÃ³n controlada.</span>
             </div>
             <div class="table-wrap">
               <table id="editTable"></table>

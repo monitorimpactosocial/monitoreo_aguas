@@ -442,3 +442,21 @@
   - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/?v=affdb98` respondio 200 y ya contiene `data-view="capture"`, `captureForm`, `authStatus` y `Auditoria de cargas`.
   - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/app.js?v=affdb98` respondio 200 y ya contiene `authRegister`, `saveMeasurement`, `recentAudit` y el backend Apps Script `@19`.
   - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/styles.css?v=affdb98` respondio 200 y ya contiene `capture-layout`, `auth-mode-buttons` y `parameter-entry-grid`.
+
+### Login inicial obligatorio, metodologia y carga guiada
+- El usuario solicito borrar la vista `Primera version`, crear una vista `Metodologia`, aclarar la experiencia de carga de datos y hacer que el logueo sea inicial, sin mostrar nada antes de una sesion efectiva.
+- Cambios aplicados:
+  - La app ahora arranca con `body.auth-locked` y una compuerta `loginGate`.
+  - El tablero completo queda oculto hasta que la sesion se valide contra Apps Script mediante `authCheck`.
+  - El login, registro de primera vez y recuperacion de contrasena quedaron en la pantalla inicial.
+  - Al iniciar sesion o crear usuario correctamente, se desbloquea el tablero.
+  - Al cerrar sesion, vuelve la compuerta inicial.
+  - La vista `Primera version` fue retirada del HTML y de la navegacion.
+  - Se creo la vista `Metodologia` con detalle de alcance, fuentes, puntos, carga, seguridad, auditoria, series, lineas de base, comparabilidad, estadistica, alertas, mapa e interpretacion.
+  - `Cargar datos` paso a llamarse `Carga guiada` y ahora incluye pasos operativos claros: seleccionar punto, definir ano/temporada, cargar solo parametros medidos, enviar y auditar.
+- Verificaciones realizadas:
+  - `node --check app\app.js`: correcto.
+  - `git diff --check`: sin errores.
+  - Servidor local `http://127.0.0.1:8797/app/?qa=authgate`: respuesta 200.
+  - La pagina local contiene `loginGate`, `auth-locked`, `methodology-grid` y no contiene `id="legacy"`.
+  - Backend Apps Script `authCheck` con token invalido respondio JSONP 200 con error controlado `Sesion invalida`, confirmando la compuerta de validacion.

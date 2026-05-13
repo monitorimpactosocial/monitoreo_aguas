@@ -299,7 +299,7 @@ function init() {
   const requestedView = new URLSearchParams(window.location.search).get("view") || window.location.hash.replace("#", "");
   if (requestedView && document.getElementById(requestedView)) setView(requestedView);
   else renderAll();
-  loadLegacyData();
+  bootstrapAuthentication();
 }
 
 function bindEvents() {
@@ -328,10 +328,10 @@ function bindEvents() {
   document.querySelectorAll("[data-auth-mode]").forEach((button) => {
     button.addEventListener("click", () => setAuthMode(button.dataset.authMode));
   });
-  document.querySelector("#loginForm")?.addEventListener("submit", handleLogin);
-  document.querySelector("#registerForm")?.addEventListener("submit", handleRegister);
-  document.querySelector("#requestResetCode")?.addEventListener("click", requestResetCode);
-  document.querySelector("#recoverForm")?.addEventListener("submit", handlePasswordReset);
+  document.querySelector("#gateLoginForm")?.addEventListener("submit", handleLogin);
+  document.querySelector("#gateRegisterForm")?.addEventListener("submit", handleRegister);
+  document.querySelectorAll("[data-reset-code]").forEach((button) => button.addEventListener("click", requestResetCode));
+  document.querySelector("#gateRecoverForm")?.addEventListener("submit", handlePasswordReset);
   document.querySelector("#captureForm")?.addEventListener("submit", handleCaptureSubmit);
   document.querySelector("#capturePoint")?.addEventListener("change", syncCapturePointMeta);
   document.querySelector("#clearCaptureValues")?.addEventListener("click", clearCaptureParameterValues);
@@ -371,6 +371,7 @@ function alignParentsToWaterBody() {
 }
 
 function setView(view) {
+  if (view === "legacy") view = "methodology";
   activeView = view;
   document.querySelectorAll(".tab").forEach((button) => button.classList.toggle("is-active", button.dataset.view === view));
   document.querySelectorAll(".view").forEach((section) => section.classList.toggle("is-active", section.id === view));
@@ -577,7 +578,6 @@ function renderAll() {
     renderDataDetailTable(rows);
   }
   if (activeView === "capture") renderCaptureView();
-  if (activeView === "legacy") renderLegacyDashboard();
   if (activeView === "edit") renderEditTable();
   syncChoiceControls();
 }
@@ -1762,6 +1762,35 @@ function renderCaptureView() {
   renderCaptureAuditTable();
 }
 
+async function bootstrapAuthentication() {
+  renderAuthState();
+  if (!authState?.token) {
+    lockApp("");
+    return;
+  }
+  if (!isSessionUsable()) {
+    authState = null;
+    localStorage.removeItem(authStorageKey);
+    renderAuthState();
+    lockApp("La sesion vencio. Ingrese nuevamente.", "error");
+    return;
+  }
+  setMessage("#gateAuthMessage", "Verificando sesion en el libro en linea...");
+  try {
+    const previous = { ...authState };
+    const result = await apiJsonp("authCheck", { sessionToken: authState.token });
+    if (!result.success) throw new Error(result.error || "Sesion no validada.");
+    saveAuthState({ ...previous, ...result.session, token: previous.token, fullName: previous.fullName || result.session.fullName || previous.username });
+    unlockApp();
+    refreshAuditTable();
+  } catch (err) {
+    authState = null;
+    localStorage.removeItem(authStorageKey);
+    renderAuthState();
+    lockApp(err.message || "Debe iniciar sesion nuevamente.", "error");
+  }
+}
+
 function renderCapturePointOptions() {
   const select = document.querySelector("#capturePoint");
   if (!select) return;
@@ -1792,19 +1821,19 @@ function capturePointMeta() {
 }
 
 function renderAuthState() {
-  const status = document.querySelector("#authStatus");
   const fieldset = document.querySelector("#captureFieldset");
   const responsible = document.querySelector("#captureResponsible");
   const valid = isSessionUsable();
   if (fieldset) fieldset.disabled = !valid;
   if (responsible && valid && !responsible.value) responsible.value = authState.fullName || authState.username;
-  if (!status) return;
-  if (valid) {
-    status.innerHTML = `<strong>${escapeHtml(authState.fullName || authState.username)}</strong><span>${escapeHtml(authState.role || "responsable")} | sesion activa hasta ${escapeHtml(formatDateTime(authState.expiresAt))}</span><button type="button" id="logoutButton" class="ghost">Salir</button>`;
-    document.querySelector("#logoutButton")?.addEventListener("click", logout);
-  } else {
-    status.innerHTML = `<strong>Sin sesion activa</strong><span>Ingrese o cree un usuario para habilitar el formulario de carga.</span>`;
-  }
+  document.querySelectorAll(".auth-status").forEach((status) => {
+    if (valid) {
+      status.innerHTML = `<strong>${escapeHtml(authState.fullName || authState.username)}</strong><span>${escapeHtml(authState.role || "responsable")} | sesion activa hasta ${escapeHtml(formatDateTime(authState.expiresAt))}</span><button type="button" data-logout class="ghost">Salir</button>`;
+    } else {
+      status.innerHTML = `<strong>Sin sesion activa</strong><span>Ingrese o cree un usuario para habilitar el sistema.</span>`;
+    }
+  });
+  document.querySelectorAll("[data-logout]").forEach((button) => button.addEventListener("click", logout));
 }
 
 function setAuthMode(mode) {
@@ -1813,32 +1842,36 @@ function setAuthMode(mode) {
     panel.hidden = panel.dataset.authPanel !== mode;
   });
   setMessage("#authMessage", "");
+  setMessage("#gateAuthMessage", "");
 }
 
 async function handleLogin(event) {
   event.preventDefault();
   const form = event.currentTarget;
+  const messageTarget = form.dataset.message || "#authMessage";
   const username = normalizeUsername(form.username.value);
-  setMessage("#authMessage", "Validando acceso...");
+  setMessage(messageTarget, "Validando acceso...");
   try {
     const passwordDigest = await credentialDigest(username, form.password.value);
     const result = await apiJsonp("authLogin", { username, passwordDigest });
     if (!result.success) throw new Error(result.error || "No se pudo iniciar sesion");
     saveAuthState(result.session);
     form.reset();
-    setMessage("#authMessage", "Acceso confirmado. Ya puede cargar datos.", "success");
+    setMessage(messageTarget, "Acceso confirmado. Abriendo el sistema...", "success");
+    unlockApp();
     renderAuthState();
     refreshAuditTable();
   } catch (err) {
-    setMessage("#authMessage", err.message || String(err), "error");
+    setMessage(messageTarget, err.message || String(err), "error");
   }
 }
 
 async function handleRegister(event) {
   event.preventDefault();
   const form = event.currentTarget;
+  const messageTarget = form.dataset.message || "#authMessage";
   const username = normalizeUsername(form.username.value);
-  setMessage("#authMessage", "Creando usuario...");
+  setMessage(messageTarget, "Creando usuario...");
   try {
     const passwordDigest = await credentialDigest(username, form.password.value);
     const result = await apiJsonp("authRegister", {
@@ -1851,42 +1884,45 @@ async function handleRegister(event) {
     saveAuthState(result.session);
     form.reset();
     setAuthMode("login");
-    setMessage("#authMessage", "Usuario creado y sesion iniciada.", "success");
+    setMessage(messageTarget, "Usuario creado y sesion iniciada.", "success");
+    unlockApp();
     renderAuthState();
     refreshAuditTable();
   } catch (err) {
-    setMessage("#authMessage", err.message || String(err), "error");
+    setMessage(messageTarget, err.message || String(err), "error");
   }
 }
 
-async function requestResetCode() {
-  const form = document.querySelector("#recoverForm");
+async function requestResetCode(event) {
+  const form = event.currentTarget.closest("form");
+  const messageTarget = form?.dataset.message || "#authMessage";
   const account = form?.account.value.trim();
   if (!account) {
-    setMessage("#authMessage", "Indique usuario o correo.", "error");
+    setMessage(messageTarget, "Indique usuario o correo.", "error");
     return;
   }
-  setMessage("#authMessage", "Solicitando codigo de recuperacion...");
+  setMessage(messageTarget, "Solicitando codigo de recuperacion...");
   try {
     const result = await apiJsonp("authRequestReset", { account });
     if (!result.success) throw new Error(result.error || "No se pudo generar el codigo");
-    setMessage("#authMessage", result.message || "Codigo enviado al correo registrado.", "success");
+    setMessage(messageTarget, result.message || "Codigo enviado al correo registrado.", "success");
   } catch (err) {
-    setMessage("#authMessage", err.message || String(err), "error");
+    setMessage(messageTarget, err.message || String(err), "error");
   }
 }
 
 async function handlePasswordReset(event) {
   event.preventDefault();
   const form = event.currentTarget;
+  const messageTarget = form.dataset.message || "#authMessage";
   const account = form.account.value.trim();
   const code = form.code.value.trim();
   const password = form.password.value;
   if (!account || !code || !password) {
-    setMessage("#authMessage", "Complete usuario/correo, codigo y nueva contrasena.", "error");
+    setMessage(messageTarget, "Complete usuario/correo, codigo y nueva contrasena.", "error");
     return;
   }
-  setMessage("#authMessage", "Actualizando contrasena...");
+  setMessage(messageTarget, "Actualizando contrasena...");
   try {
     const usernameHint = normalizeUsername(account.includes("@") ? account.split("@")[0] : account);
     const passwordDigest = await credentialDigest(usernameHint, password);
@@ -1894,9 +1930,9 @@ async function handlePasswordReset(event) {
     if (!result.success) throw new Error(result.error || "No se pudo cambiar la contrasena");
     form.reset();
     setAuthMode("login");
-    setMessage("#authMessage", "Contrasena actualizada. Ingrese con el nuevo acceso.", "success");
+    setMessage(messageTarget, "Contrasena actualizada. Ingrese con el nuevo acceso.", "success");
   } catch (err) {
-    setMessage("#authMessage", err.message || String(err), "error");
+    setMessage(messageTarget, err.message || String(err), "error");
   }
 }
 
@@ -2030,7 +2066,8 @@ function loadPendingCaptures() {
 
 function saveAuthState(session) {
   authState = session || null;
-  localStorage.setItem(authStorageKey, JSON.stringify(authState));
+  if (authState) localStorage.setItem(authStorageKey, JSON.stringify(authState));
+  else localStorage.removeItem(authStorageKey);
 }
 
 function loadAuthState() {
@@ -2046,10 +2083,21 @@ function logout() {
   localStorage.removeItem(authStorageKey);
   renderAuthState();
   renderCaptureAuditTable();
+  lockApp("Sesion cerrada.", "success");
 }
 
 function isSessionUsable() {
   return Boolean(authState?.token && (!authState.expiresAt || new Date(authState.expiresAt).getTime() > Date.now()));
+}
+
+function lockApp(message = "", type = "") {
+  document.body.classList.add("auth-locked");
+  if (message) setMessage("#gateAuthMessage", message, type);
+}
+
+function unlockApp() {
+  document.body.classList.remove("auth-locked");
+  setMessage("#gateAuthMessage", "");
 }
 
 function normalizeUsername(value) {
