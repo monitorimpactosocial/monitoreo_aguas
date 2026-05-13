@@ -576,3 +576,11 @@
   - `node --check app\app.js`: correcto.
   - `git diff --check`: sin errores.
   - Edge headless sobre `file:///G:/Mi%20unidad/MONITOREO_AGUA/app/index.html?view=compatibility&qa=four-files`: renderizo `Shapiro-Wilk`, `ANOVA`, `W:`, `F:`, `Coliformes totales`, `Imidacloprid`, `Tiametoxam` y no mostro `Uncaught`, `TypeError` ni `ReferenceError`.
+- Commit funcional publicado: `1cd3619`.
+- Verificacion posterior a GitHub Pages:
+  - El remoto `origin/main` quedo en `1cd3619fb08cb37a8f85cb467d1b67c773e399b5`.
+  - Raw GitHub confirmo `parse_shapiro_normality`, `parse_two_column_kruskal_table`, `parse_rio_paraguay_anova_years`, `formatTestStatistic`, `Shapiro-Wilk`, `ANOVA`, `Kruskal Wallis coliformes` y `KruskalWallis_PesticidasRioPY`.
+  - La primera consulta a Pages devolvio cache anterior para `app.js`; con cache-buster `1cd3619_retry2` Pages respondio 200 con la version nueva.
+  - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/app.js?v=1cd3619_retry2` respondio 200 y ya contiene `formatTestStatistic`, `Estadístico` y `W/F/H`.
+  - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/monitoring_dataset.js?v=1cd3619_retry2` respondio 200 y ya contiene `Shapiro-Wilk`, `ANOVA`, `Kruskal Wallis coliformes` y `KruskalWallis_PesticidasRioPY`.
+  - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/?v=1cd3619_retry2` respondio 200 y ya contiene `statTestsTable` y `Calidad estadística`.
