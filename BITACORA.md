@@ -435,3 +435,10 @@
   - `?action=authCheck` con token invalido respondio JSONP correctamente con error controlado de sesion invalida.
   - `?action=authRegister` incompleto respondio validacion controlada de usuario invalido sin crear usuario.
   - Servidor local `http://127.0.0.1:8796/app/?qa=capture`: respuesta 200 y contiene `captureForm`.
+- Commit funcional publicado: `affdb98`.
+- Verificacion posterior a GitHub Pages:
+  - El remoto `origin/main` quedo en `affdb98c4cb32b5a19655938ac861cc978e5b565`.
+  - La primera consulta a Pages devolvio cache anterior; raw GitHub ya contenia la version nueva y Pages propago despues del reintento.
+  - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/?v=affdb98` respondio 200 y ya contiene `data-view="capture"`, `captureForm`, `authStatus` y `Auditoria de cargas`.
+  - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/app.js?v=affdb98` respondio 200 y ya contiene `authRegister`, `saveMeasurement`, `recentAudit` y el backend Apps Script `@19`.
+  - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/styles.css?v=affdb98` respondio 200 y ya contiene `capture-layout`, `auth-mode-buttons` y `parameter-entry-grid`.
