@@ -175,8 +175,8 @@ const notes = {
     text: "p<0,05 indica diferencia estadísticamente significativa bajo el test aplicado. No explica causa, solo indica que los grupos difieren estadísticamente.",
   },
   hStat: {
-    title: "H de Kruskal-Wallis",
-    text: "H es el estadístico de Kruskal-Wallis, usado para comparar varios grupos cuando no se asume normalidad o hay muestras pequeñas/no paramétricas.",
+    title: "Estadístico de prueba",
+    text: "Muestra H para Kruskal-Wallis, W para Shapiro-Wilk y F para ANOVA. El valor debe leerse junto con el p-valor y el tamaño de muestra.",
   },
   testType: {
     title: "Tipo de prueba",
@@ -1802,13 +1802,13 @@ function renderStatTests() {
     <div><strong>${formatInt(significant)}</strong><span>p&lt;0,05</span></div>
     <div><strong>${formatInt(unique(rows.map((row) => row.parameter_key)).length)}</strong><span>parámetros con prueba</span></div>
   `;
-  renderTable("#statTestsTable", ["Componente", "Cauce", "Parámetro", "Grupo", noteHeader("Test", "testType"), noteHeader("H", "hStat"), noteHeader("p-valor", "pValue"), noteHeader("Representatividad", "representativeness"), noteHeader("Resultado", "status")], rows.slice(0, 500).map((row) => [
+  renderTable("#statTestsTable", ["Componente", "Cauce", "Parámetro", "Grupo", noteHeader("Test", "testType"), noteHeader("Estadístico", "hStat"), noteHeader("p-valor", "pValue"), noteHeader("Representatividad", "representativeness"), noteHeader("Resultado", "status")], rows.slice(0, 500).map((row) => [
     row.component,
     row.water_body,
     row.parameter,
     row.group || row.grouping,
     row.test,
-    formatNumber(row.h),
+    formatTestStatistic(row),
     formatP(row.p_value),
     representativenessText(row.n),
     row.significant ? "Diferencia significativa" : "Sin diferencia significativa",
@@ -2436,7 +2436,7 @@ function renderGuide() {
     },
     {
       title: "Revisión de cálculos de consultora",
-      text: "La app expone test, p-valor, H, grupo, fuente y fila del anexo para contrastar los resultados estadísticos contra los libros entregados por la consultora.",
+      text: "La app expone test, p-valor, estadístico W/F/H, grupo, fuente y fila del anexo para contrastar los resultados contra los libros entregados por la consultora.",
     },
     {
       title: "Problemas de caracteres especiales",
@@ -2926,7 +2926,7 @@ function selectRioParaguay() {
 
 function testApproaches(row) {
   const tags = new Set();
-  if (String(row.group || "").match(/camp/i)) tags.add("Enfoque 1 · Por Campaña");
+  if (row.grouping === "campaign" || String(row.group || "").match(/camp/i)) tags.add("Enfoque 1 · Por Campaña");
   if (row.grouping === "year" || String(row.group || "").match(/20\d{2}/)) tags.add("Enfoque 2 · En el Tiempo");
   tags.add("Enfoque 3 · Evolución del Programa");
   return [...tags];
@@ -3183,6 +3183,13 @@ function formatFixed(value, digits = 1) {
 function formatP(value) {
   if (!numeric(value)) return "";
   return value < 0.0001 ? "<0,0001" : formatNumber(value);
+}
+
+function formatTestStatistic(row) {
+  const value = numeric(row?.h) ? row.h : row?.statistic;
+  if (!numeric(value)) return "";
+  const label = row?.statistic_label || (row?.test === "Shapiro-Wilk" ? "W" : row?.test === "ANOVA" ? "F" : "H");
+  return `${label}: ${formatNumber(value)}`;
 }
 
 function formatPercent(value) {

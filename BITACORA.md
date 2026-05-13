@@ -545,3 +545,34 @@
   - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/?v=868a0e1_retry2` respondio 200 y ya contiene `rioMonthlyTable`, `rio-filter-panel` y `Notaciones`.
   - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/app.js?v=868a0e1_retry2` respondio 200 y ya contiene `filteredRioRows`, `drawRioMonthlyChart` y `component_code: row.component_code`.
   - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/monitoring_dataset.js?v=868a0e1_retry2` respondio 200 y ya contiene `Río Paraguay mensual`, `Tiametoxam` y `medium_code`.
+
+### Incorporacion de cuatro anexos estadisticos complementarios
+- El usuario solicito considerar los cuatro archivos nuevos puestos en `G:\Mi unidad\MONITOREO_AGUA`.
+- Diagnostico inicial:
+  - `Anexos/` esta ignorado por Git, por eso `git status` no muestra los libros como nuevos.
+  - Se revisaron los libros disponibles y se asumio como paquete complementario de Rio Paraguay a los anexos estadisticos no explotados plenamente por el extractor:
+    - `Anexos\Agua superficial\Industrial\SHAPIRO_FW_RIOPY.xlsx`.
+    - `Anexos\Agua superficial\Industrial\ANOVA_AÑOS_DQO-DBO-pH.xlsx`.
+    - `Anexos\Agua superficial\Industrial\Kruskal Wallis coliformes.xlsx`.
+    - `Anexos\Agua superficial\Industrial\KruskalWallis_PesticidasRioPY_entre campañas.xlsx`.
+- Cambios aplicados:
+  - Se agrego lectura de Shapiro-Wilk para normalidad de parametros de Rio Paraguay.
+  - Se agrego lectura de ANOVA anual para DBO, DQO y pH.
+  - Se agrego lectura de Kruskal-Wallis de coliformes entre puntos `FW01-PY`, `FW02-PY` y `FW03-PY`.
+  - Se agrego lectura de Kruskal-Wallis de pesticidas entre campanas para `Imidacloprid` y `Tiametoxam`.
+  - Se normalizaron etiquetas `Col_Tot`, `Col_fec` y `Tiametoxan` a `Coliformes totales`, `Coliformes fecales` y `Tiametoxam`.
+  - Se ajusto la tabla de calidad estadistica para mostrar el estadistico correcto segun prueba: `W` para Shapiro-Wilk, `F` para ANOVA y `H` para Kruskal-Wallis.
+  - Se agrego una compuerta para ignorar filas post hoc `Ranks` y evitar puntos falsos.
+- Dataset regenerado:
+  - `raw_records`: 5.473.
+  - `series`: 3.136.
+  - `statistical_tests`: 129.
+  - `points`: 41.
+  - `parameters`: 57.
+  - Pruebas por tipo: 90 Kruskal-Wallis, 36 Shapiro-Wilk y 3 ANOVA.
+  - Pruebas de Rio Paraguay: 99, incluyendo Shapiro, ANOVA, coliformes y pesticidas.
+- Verificaciones realizadas:
+  - `python -m py_compile scripts\build_dashboard_data.py`: correcto.
+  - `node --check app\app.js`: correcto.
+  - `git diff --check`: sin errores.
+  - Edge headless sobre `file:///G:/Mi%20unidad/MONITOREO_AGUA/app/index.html?view=compatibility&qa=four-files`: renderizo `Shapiro-Wilk`, `ANOVA`, `W:`, `F:`, `Coliformes totales`, `Imidacloprid`, `Tiametoxam` y no mostro `Uncaught`, `TypeError` ni `ReferenceError`.

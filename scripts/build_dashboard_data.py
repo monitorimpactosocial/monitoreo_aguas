@@ -94,8 +94,18 @@ RIO_PARAGUAY_SOURCES = [
         "sheet": "Sheet1",
     },
     {
+        "role": "ANOVA por años para DBO, DQO y pH",
+        "file": "Anexos\\Agua superficial\\Industrial\\ANOVA_AÑOS_DQO-DBO-pH.xlsx",
+        "sheet": "Sheet1",
+    },
+    {
         "role": "Normalidad Shapiro-Wilk",
         "file": "Anexos\\Agua superficial\\Industrial\\SHAPIRO_FW_RIOPY.xlsx",
+        "sheet": "Sheet1",
+    },
+    {
+        "role": "Kruskal-Wallis de coliformes entre puntos",
+        "file": "Anexos\\Agua superficial\\Industrial\\Kruskal Wallis coliformes.xlsx",
         "sheet": "Sheet1",
     },
     {
@@ -132,8 +142,11 @@ def normalize_label(value: Any) -> str:
     canonical = {
         "2 4 d": "2,4-D",
         "clorofila a": "Clorofila A",
+        "col fec": "Coliformes fecales",
+        "col tot": "Coliformes totales",
         "fosforo total": "Fósforo total",
         "niquel": "Níquel",
+        "tiametoxan": "Tiametoxam",
         "demanda biologica de oxigeno": "Demanda biológica de oxígeno",
         "demanda quimica de oxigeno": "Demanda química de oxígeno",
         "ortosfato fosfato": "Ortofosfatos",
@@ -569,6 +582,7 @@ def parse_repeated_stat_table(
                     "group": group_value,
                     "test": "Kruskal-Wallis",
                     "h": h_value,
+                    "statistic_label": "H",
                     "p_value": p_value,
                     "significant": bool(p_value is not None and p_value < 0.05),
                     "alpha": 0.05,
@@ -579,6 +593,212 @@ def parse_repeated_stat_table(
                     "source": source_ref(path, sheet, int(idx) + 1),
                 }
             )
+
+
+def append_statistical_test(
+    *,
+    component: str,
+    medium: str,
+    water_body: str,
+    parameter: str,
+    grouping: str,
+    group: str,
+    test: str,
+    statistic_value: float | None,
+    statistic_label: str,
+    p_value: float | None,
+    n_value: float | None,
+    mean_value: float | None,
+    sd_value: float | None,
+    median_value: float | None,
+    source: dict[str, Any],
+) -> None:
+    statistical_tests.append(
+        {
+            "component": component,
+            "medium": medium,
+            "water_body": water_body,
+            "parameter": parameter,
+            "parameter_key": slug(parameter),
+            "grouping": grouping,
+            "group": group,
+            "test": test,
+            "h": statistic_value,
+            "statistic_label": statistic_label,
+            "p_value": p_value,
+            "significant": bool(p_value is not None and p_value < 0.05),
+            "alpha": 0.05,
+            "n": n_value,
+            "mean": mean_value,
+            "sd": sd_value,
+            "median": median_value,
+            "source": source,
+        }
+    )
+
+
+def parse_shapiro_normality(
+    filename: str,
+    *,
+    component: str,
+    medium: str,
+    water_body: str,
+) -> None:
+    path = find_file(filename)
+    sheet = pd.ExcelFile(path).sheet_names[0]
+    df = pd.read_excel(path, sheet_name=sheet, header=None, dtype=object)
+    for idx, row in df.iterrows():
+        cells = [clean_text(value) for value in row.tolist()]
+        if len(cells) < 7:
+            continue
+        parameter = normalize_label(cells[0])
+        if not parameter or slug(parameter) in {"parametro", "columna1"}:
+            continue
+        n_value = to_number(cells[2])
+        mean_value = to_number(cells[3])
+        sd_value = to_number(cells[4])
+        w_value = to_number(cells[5])
+        p_value = to_number(cells[6])
+        if n_value is None and w_value is None and p_value is None:
+            continue
+        append_statistical_test(
+            component=component,
+            medium=medium,
+            water_body=water_body,
+            parameter=parameter,
+            grouping="normality",
+            group=water_body,
+            test="Shapiro-Wilk",
+            statistic_value=w_value,
+            statistic_label="W",
+            p_value=p_value,
+            n_value=n_value,
+            mean_value=mean_value,
+            sd_value=sd_value,
+            median_value=None,
+            source=source_ref(path, sheet, int(idx) + 1),
+        )
+
+
+def parse_two_column_kruskal_table(
+    filename: str,
+    *,
+    component: str,
+    medium: str,
+    water_body: str,
+    grouping: str,
+    value_kind: str,
+) -> None:
+    path = find_file(filename)
+    sheet = pd.ExcelFile(path).sheet_names[0]
+    df = pd.read_excel(path, sheet_name=sheet, header=None, dtype=object)
+    for idx, row in df.iterrows():
+        cells = [clean_text(value) for value in row.tolist()]
+        if len(cells) < 8:
+            continue
+        parameter = normalize_label(cells[0])
+        group_value = clean_text(cells[1])
+        if not parameter or slug(parameter) in {"variable", "prueba", "trat", "medias", "columna1"}:
+            continue
+        if not group_value or slug(group_value) in {"punto", "campana", "ranks"}:
+            continue
+
+        year = to_year(group_value)
+        if grouping == "point" and not re.search(r"[A-Za-z]{1,4}\d", group_value):
+            continue
+        if grouping == "campaign" and year is None:
+            continue
+        if grouping == "campaign":
+            point = f"{water_body} mensual"
+            period = str(year) if year else group_value
+            campaign = f"Campaña {group_value}"
+        else:
+            point = group_value
+            period = "2019-2023" if water_body == "Río Paraguay" else "Consolidado"
+            campaign = "Resumen estadístico"
+
+        n_value = to_number(cells[2])
+        mean_value = to_number(cells[3])
+        sd_value = to_number(cells[4])
+        median_value = to_number(cells[5])
+        h_value = to_number(cells[6])
+        p_value = to_number(cells[7])
+        src = source_ref(path, sheet, int(idx) + 1)
+        add_record(
+            component=component,
+            medium=medium,
+            water_body=water_body,
+            point=point,
+            parameter=parameter,
+            year=year,
+            period=period,
+            campaign=campaign,
+            n=n_value,
+            mean=mean_value,
+            sd=sd_value,
+            median=median_value,
+            value=None,
+            category="Resultado estadístico complementario",
+            value_kind=value_kind,
+            source=src,
+        )
+        if h_value is not None or p_value is not None:
+            append_statistical_test(
+                component=component,
+                medium=medium,
+                water_body=water_body,
+                parameter=parameter,
+                grouping=grouping,
+                group=group_value,
+                test="Kruskal-Wallis",
+                statistic_value=h_value,
+                statistic_label="H",
+                p_value=p_value,
+                n_value=n_value,
+                mean_value=mean_value,
+                sd_value=sd_value,
+                median_value=median_value,
+                source=src,
+            )
+
+
+def parse_rio_paraguay_anova_years() -> None:
+    path = find_file("ANOVA_AÑOS_DQO-DBO-pH.xlsx")
+    sheet = pd.ExcelFile(path).sheet_names[0]
+    df = pd.read_excel(path, sheet_name=sheet, header=None, dtype=object)
+    current_parameter = ""
+    for idx, row in df.iterrows():
+        cells = [clean_text(value) for value in row.tolist()]
+        if len(cells) < 6:
+            continue
+        first = clean_text(cells[0])
+        second = clean_text(cells[1])
+        if second.lower() == "resultado" and to_number(cells[2]) is not None:
+            current_parameter = normalize_label(first)
+            continue
+        if strip_accents(first).upper() not in {"ANO", "ANIO", "AÑO"} or not current_parameter:
+            continue
+        f_value = to_number(cells[4])
+        p_value = to_number(cells[5])
+        if f_value is None and p_value is None:
+            continue
+        append_statistical_test(
+            component="Industrial",
+            medium="Agua superficial",
+            water_body="Río Paraguay",
+            parameter=current_parameter,
+            grouping="year",
+            group="AÑO",
+            test="ANOVA",
+            statistic_value=f_value,
+            statistic_label="F",
+            p_value=p_value,
+            n_value=None,
+            mean_value=None,
+            sd_value=None,
+            median_value=None,
+            source=source_ref(path, sheet, int(idx) + 1),
+        )
 
 
 def parse_forestal_surface_summary() -> None:
@@ -1008,6 +1228,29 @@ def main() -> None:
         water_body="Río Paraguay",
         grouping="year",
         value_kind="stat_summary_by_year",
+    )
+    parse_rio_paraguay_anova_years()
+    parse_shapiro_normality(
+        "SHAPIRO_FW_RIOPY.xlsx",
+        component="Industrial",
+        medium="Agua superficial",
+        water_body="Río Paraguay",
+    )
+    parse_two_column_kruskal_table(
+        "Kruskal Wallis coliformes.xlsx",
+        component="Industrial",
+        medium="Agua superficial",
+        water_body="Río Paraguay",
+        grouping="point",
+        value_kind="stat_summary_by_point",
+    )
+    parse_two_column_kruskal_table(
+        "KruskalWallis_PesticidasRioPY_entre campañas.xlsx",
+        component="Industrial",
+        medium="Agua superficial",
+        water_body="Río Paraguay",
+        grouping="campaign",
+        value_kind="stat_summary_by_campaign",
     )
     parse_forestal_surface_summary()
     parse_repeated_stat_table(
