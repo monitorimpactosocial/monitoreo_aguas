@@ -491,3 +491,11 @@
   - Servidor local `http://127.0.0.1:8798/app/?qa=consultoria`: respuesta 200 y contiene `evidenceGate` y `consultancyPriorityTable`.
   - `http://127.0.0.1:8798/app/app.js?qa=consultoria`: respuesta 200 y contiene `renderConsultancyLayer`.
   - `http://127.0.0.1:8798/app/styles.css?qa=consultoria`: respuesta 200 y contiene `watchlist-figure`.
+- Commit funcional publicado: `ca6efcb`.
+- Verificacion posterior a GitHub Pages:
+  - El remoto `origin/main` quedo en `ca6efcb7e27ec8b478accc145fda7849e4f4d299`.
+  - Raw GitHub confirmo `evidenceGate`, `consultancyPriorityTable`, `renderConsultancyLayer` y `watchlist-figure` inmediatamente despues del push.
+  - La primera consulta a Pages devolvio cache anterior; luego de reintento con cache-buster `ca6efcb_retry1`, Pages respondio 200 con la version nueva.
+  - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/?v=ca6efcb_retry1` respondio 200 y ya contiene `evidenceGate`, `consultancyPriorityTable` y `watchlist-figure`.
+  - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/app.js?v=ca6efcb_retry1` respondio 200 y ya contiene `renderConsultancyLayer`.
+  - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/styles.css?v=ca6efcb_retry1` respondio 200 y ya contiene `watchlist-figure`.
