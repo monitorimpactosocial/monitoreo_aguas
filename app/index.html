@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="es">
   <head>
     <meta charset="utf-8" />
@@ -96,9 +96,9 @@
       <nav class="tabs" aria-label="Vistas principales">
         <button class="tab is-active" data-view="dashboard">Resumen</button>
         <button class="tab" data-view="capture">Carga guiada</button>
-        <button class="tab" data-view="rio">RÃ­o Paraguay</button>
+        <button class="tab" data-view="rio">Río Paraguay</button>
         <button class="tab" data-view="evolution">Series</button>
-        <button class="tab" data-view="compatibility">Calidad estadÃ­stica</button>
+        <button class="tab" data-view="compatibility">Calidad estadística</button>
         <button class="tab" data-view="data">Fuentes</button>
         <button class="tab" data-view="methodology">Metodologia</button>
       </nav>
@@ -109,11 +109,11 @@
         <div class="control-intro">
           <div>
             <span class="eyebrow">Consulta guiada</span>
-            <h1>Filtros de anÃ¡lisis</h1>
-            <p>Seleccione el sistema, los puntos, el periodo y la lectura estadÃ­stica. Todo el tablero responde a este panel.</p>
+            <h1>Filtros de análisis</h1>
+            <p>Seleccione el sistema, los puntos, el periodo y la lectura estadística. Todo el tablero responde a este panel.</p>
           </div>
           <div class="control-actions">
-            <button id="quickRio" class="ghost">RÃ­o Paraguay</button>
+            <button id="quickRio" class="ghost">Río Paraguay</button>
             <button id="quickIron" class="ghost">Hierro soluble</button>
             <button id="clearFilters">Limpiar</button>
           </div>
@@ -128,13 +128,13 @@
             <select id="waterBodyFilter" class="native-select"></select>
           </label>
           <label>
-            <span>ParÃ¡metros <button class="info" data-note="parameterFilterNote">(i)</button></span>
-            <div id="parameterChoices" class="choice-board scroll" aria-label="Elegir parÃ¡metros"></div>
+            <span>Parámetros <button class="info" data-note="parameterFilterNote">(i)</button></span>
+            <div id="parameterChoices" class="choice-board scroll" aria-label="Elegir parámetros"></div>
             <select id="parameterFilter" class="native-select" multiple size="4"></select>
           </label>
           <label>
-            <span>AÃ±os <button class="info" data-note="yearFilterNote">(i)</button></span>
-            <div id="yearChoices" class="choice-board mini" aria-label="Elegir aÃ±os"></div>
+            <span>Años <button class="info" data-note="yearFilterNote">(i)</button></span>
+            <div id="yearChoices" class="choice-board mini" aria-label="Elegir años"></div>
             <select id="yearFilter" class="native-select" multiple size="4"></select>
           </label>
           <label>
@@ -166,7 +166,7 @@
         </div>
 
         <details class="advanced-box">
-          <summary>Opciones avanzadas, trazabilidad y administraciÃ³n</summary>
+          <summary>Opciones avanzadas, trazabilidad y administración</summary>
           <div class="advanced-grid">
             <label>
               <span>Componente <button class="info" data-note="componentFilterNote">(i)</button></span>
@@ -185,7 +185,7 @@
             </label>
             <label>
               <span>Lectura <button class="info" data-note="approachFilterNote">(i)</button></span>
-              <div id="approachChoices" class="choice-board mini" aria-label="Elegir enfoque de anÃ¡lisis"></div>
+              <div id="approachChoices" class="choice-board mini" aria-label="Elegir enfoque de análisis"></div>
               <select id="approachFilter" class="native-select" multiple size="3"></select>
             </label>
             <label>
@@ -194,17 +194,17 @@
               <select id="flowFilter" class="native-select"></select>
             </label>
             <label>
-              <span>Alerta por desvÃ­o <button class="info" data-note="deviationLimitNote">(i)</button></span>
+              <span>Alerta por desvío <button class="info" data-note="deviationLimitNote">(i)</button></span>
               <input id="deviationLimit" type="range" min="1" max="4" step="0.5" value="2" />
-              <span id="deviationLabel">Â±2 DE</span>
+              <span id="deviationLabel">±2 DE</span>
             </label>
           </div>
 
           <div class="advanced-actions">
             <button class="tab utility-tab" data-view="capture">Carga guiada</button>
-            <button id="sideCampaign" class="ghost">Por campaÃ±a</button>
+            <button id="sideCampaign" class="ghost">Por campaña</button>
             <button id="sideTime" class="ghost">En el tiempo</button>
-            <button id="sideProgram" class="ghost">EvoluciÃ³n del programa</button>
+            <button id="sideProgram" class="ghost">Evolución del programa</button>
             <button id="exportFilteredCsv">Exportar CSV</button>
             <button id="exportDatasetJson">Exportar JSON</button>
             <button class="tab utility-tab" data-view="methodology">Metodologia</button>
@@ -216,7 +216,7 @@
 
       <section class="workspace" aria-label="Resultados del monitoreo">
         <section id="notePanel" class="note-panel" hidden>
-          <button id="closeNote" aria-label="Cerrar nota">Ã—</button>
+          <button id="closeNote" aria-label="Cerrar nota">×</button>
           <strong id="noteTitle"></strong>
           <p id="noteText"></p>
         </section>
@@ -226,7 +226,7 @@
           <div class="context-card">
             <span class="eyebrow">Resumen ejecutivo</span>
             <h1>Monitoreo de agua</h1>
-            <p>Lectura ejecutiva del filtro actual: cobertura, comparabilidad, seÃ±ales de cambio y puntos que requieren revisiÃ³n tÃ©cnica.</p>
+            <p>Lectura ejecutiva del filtro actual: cobertura, comparabilidad, señales de cambio y puntos que requieren revisión técnica.</p>
           </div>
 
           <div class="metric-grid">
@@ -241,7 +241,7 @@
               <small>sitios dentro del filtro</small>
             </article>
             <article class="metric">
-              <span>ParÃ¡metros <button class="info" data-note="parameters">(i)</button></span>
+              <span>Parámetros <button class="info" data-note="parameters">(i)</button></span>
               <strong id="metricParams">0</strong>
               <small>variables monitoreadas</small>
             </article>
@@ -255,12 +255,38 @@
           <section class="panel analyst-panel">
             <div class="panel-head compact-head">
               <div>
-                <span class="eyebrow">DiagnÃ³stico del filtro</span>
-                <h1>QuÃ© dice la selecciÃ³n actual</h1>
-                <p>Resumen automÃ¡tico para evitar leer series aisladas como conclusiÃ³n ambiental. <button class="info" data-note="reading">(i)</button></p>
+                <span class="eyebrow">Diagnóstico del filtro</span>
+                <h1>Qué dice la selección actual</h1>
+                <p>Resumen automático para evitar leer series aisladas como conclusión ambiental. <button class="info" data-note="reading">(i)</button></p>
               </div>
             </div>
             <div id="analystBrief" class="analyst-grid"></div>
+          </section>
+
+          <section class="panel evidence-panel">
+            <div class="panel-head compact-head">
+              <div>
+                <span class="eyebrow">Informe de consultoría v04</span>
+                <h1>Puerta de evidencia estadística</h1>
+                <p>Antes de concluir, la app verifica si la selección cumple las condiciones mínimas del informe: dato cuantitativo, n>=2, punto comparable, prueba aplicable y trazabilidad. <button class="info" data-note="evidenceGate">(i)</button></p>
+              </div>
+            </div>
+            <div id="evidenceGate" class="evidence-gate"></div>
+            <div id="consultancyBrief" class="consultancy-grid"></div>
+          </section>
+
+          <section class="panel watchlist-panel">
+            <div class="panel-head compact-head">
+              <div>
+                <span class="eyebrow">Lectura priorizada</span>
+                <h1>Parámetros que merecen atención técnica</h1>
+                <p>La figura agrupa el filtro actual según los temas que el informe recomienda vigilar: nutrientes, microbiología, metales/erosión, agroquímicos, salinidad y aceites. <button class="info" data-note="priorityWatchlist">(i)</button></p>
+              </div>
+            </div>
+            <div id="watchlistFigure" class="watchlist-figure"></div>
+            <div class="table-wrap compact">
+              <table id="consultancyPriorityTable"></table>
+            </div>
           </section>
 
           <section class="panel map-panel">
@@ -280,19 +306,19 @@
           <section class="panel chart-panel">
             <div class="panel-head">
               <div>
-                <h1>EvoluciÃ³n filtrada</h1>
-                <p>El grÃ¡fico muestra tendencia. Si se mezclan parÃ¡metros con unidades distintas, usa base 100. <button class="info" data-note="chart">(i)</button></p>
+                <h1>Evolución filtrada</h1>
+                <p>El gráfico muestra tendencia. Si se mezclan parámetros con unidades distintas, usa base 100. <button class="info" data-note="chart">(i)</button></p>
               </div>
               <div id="chartMode" class="badge">modo</div>
             </div>
-            <svg id="trendChart" role="img" aria-label="GrÃ¡fico de evoluciÃ³n"></svg>
+            <svg id="trendChart" role="img" aria-label="Gráfico de evolución"></svg>
           </section>
 
           <section class="panel recovered-panel">
             <div class="panel-head compact-head">
               <div>
                 <h1>Figuras complementarias</h1>
-                <p>Recupera la lectura visual amplia de la versiÃ³n anterior, sin cargar de nuevo la pantalla principal.</p>
+                <p>Recupera la lectura visual amplia de la versión anterior, sin cargar de nuevo la pantalla principal.</p>
               </div>
             </div>
             <div class="figure-grid">
@@ -301,11 +327,11 @@
                 <div id="pointTypeFigure"></div>
               </article>
               <article class="figure-card">
-                <h2>Comparabilidad por aÃ±o</h2>
+                <h2>Comparabilidad por año</h2>
                 <div id="yearFigure"></div>
               </article>
               <article class="figure-card">
-                <h2>ParÃ¡metros mÃ¡s visibles</h2>
+                <h2>Parámetros más visibles</h2>
                 <div id="parameterFigure"></div>
               </article>
             </div>
@@ -314,13 +340,13 @@
           <div class="insight-grid">
             <section class="panel">
               <div class="panel-head compact-head">
-                <h2>Lectura rÃ¡pida <button class="info" data-note="reading">(i)</button></h2>
+                <h2>Lectura rápida <button class="info" data-note="reading">(i)</button></h2>
               </div>
               <div id="readingSummary" class="reading-summary"></div>
             </section>
             <section class="panel">
               <div class="panel-head compact-head">
-                <h2>DesvÃ­os a revisar</h2>
+                <h2>Desvíos a revisar</h2>
               </div>
               <div id="alertList" class="alert-list"></div>
             </section>
@@ -330,9 +356,9 @@
         <section class="view" id="rio">
           <div class="context-card">
             <span class="eyebrow">Vista focalizada</span>
-            <h1>RÃ­o Paraguay</h1>
-            <p>Concentra los puntos FW01-PY, FW02-PY y FW03-PY, sus fuentes y la clasificaciÃ³n entrada, intermedio y salida.</p>
-            <button id="forceRioView">Aplicar filtro RÃ­o Paraguay</button>
+            <h1>Río Paraguay</h1>
+            <p>Concentra los puntos FW01-PY, FW02-PY y FW03-PY, sus fuentes y la clasificación entrada, intermedio y salida.</p>
+            <button id="forceRioView">Aplicar filtro Río Paraguay</button>
           </div>
           <div class="rio-kpis" id="rioKpis"></div>
           <details class="panel source-details">
@@ -342,7 +368,7 @@
           <section class="panel">
             <div class="panel-head">
               <div>
-                <h1>Datos del RÃ­o Paraguay</h1>
+                <h1>Datos del Río Paraguay</h1>
                 <p>Tabla resumida del filtro actual. <button class="info" data-note="rio">(i)</button></p>
               </div>
             </div>
@@ -351,7 +377,7 @@
             </div>
           </section>
           <details class="panel detail-block">
-            <summary>Ver tabla tÃ©cnica completa recuperada</summary>
+            <summary>Ver tabla técnica completa recuperada</summary>
             <div class="table-wrap">
               <table id="rioDetailTable"></table>
             </div>
@@ -362,19 +388,19 @@
           <section class="panel chart-panel">
             <div class="panel-head compact-head">
               <div>
-                <span class="eyebrow">EvoluciÃ³n visual</span>
+                <span class="eyebrow">Evolución visual</span>
                 <h1>Series filtradas</h1>
-                <p>La figura responde al mismo filtro global de cauce, punto, parÃ¡metro, aÃ±o y entrada/salida. <button class="info" data-note="series">(i)</button></p>
+                <p>La figura responde al mismo filtro global de cauce, punto, parámetro, año y entrada/salida. <button class="info" data-note="series">(i)</button></p>
               </div>
               <div id="seriesChartMode" class="badge">modo</div>
             </div>
-            <svg id="seriesTrendChart" role="img" aria-label="GrÃ¡fico de series filtradas"></svg>
+            <svg id="seriesTrendChart" role="img" aria-label="Gráfico de series filtradas"></svg>
           </section>
           <section class="panel">
             <div class="panel-head">
               <div>
-                <h1>Series y variaciÃ³n</h1>
-                <p>Use esta matriz cuando necesite revisar valores, bases y diferencias con mÃ¡s detalle. <button class="info" data-note="matrix">(i)</button></p>
+                <h1>Series y variación</h1>
+                <p>Use esta matriz cuando necesite revisar valores, bases y diferencias con más detalle. <button class="info" data-note="matrix">(i)</button></p>
               </div>
             </div>
             <div class="table-wrap">
@@ -382,7 +408,7 @@
             </div>
           </section>
           <details class="panel detail-block">
-            <summary>Ver matriz tÃ©cnica completa recuperada</summary>
+            <summary>Ver matriz técnica completa recuperada</summary>
             <div class="table-wrap">
               <table id="evolutionDetailTable"></table>
             </div>
@@ -393,7 +419,7 @@
           <div class="qa-grid">
             <section class="panel">
               <h1>Compatibilidad de puntos <button class="info" data-note="compatibility">(i)</button></h1>
-              <p>Indica quÃ© puntos tienen datos suficientes para comparar sin sobrerrepresentar muestras pequeÃ±as.</p>
+              <p>Indica qué puntos tienen datos suficientes para comparar sin sobrerrepresentar muestras pequeñas.</p>
               <div class="table-wrap">
                 <table id="pointCompatibilityTable"></table>
               </div>
@@ -405,7 +431,7 @@
               </details>
             </section>
             <section class="panel">
-              <h1>Pruebas estadÃ­sticas <button class="info" data-note="statistics">(i)</button></h1>
+              <h1>Pruebas estadísticas <button class="info" data-note="statistics">(i)</button></h1>
               <div id="statSummary" class="stat-summary"></div>
               <div class="table-wrap compact">
                 <table id="statTestsTable"></table>
@@ -554,6 +580,24 @@
             <p>Esta vista documenta la logica completa del tablero: fuentes, carga, clasificacion territorial, comparabilidad, calculos estadisticos, limites de interpretacion y gobierno de datos.</p>
           </div>
 
+          <section class="panel method-flow-panel">
+            <div class="panel-head compact-head">
+              <div>
+                <span class="eyebrow">Ruta estadística del informe v04</span>
+                <h1>De dato crudo a conclusión defendible</h1>
+                <p>La consultoría separa descripción, comparación estadística e interpretación ambiental. La app replica esa secuencia para evitar conclusiones fuertes con muestras pequeñas o puntos no comparables. <button class="info" data-note="consultancyMethod">(i)</button></p>
+              </div>
+            </div>
+            <div class="method-flow">
+              <article><strong>1</strong><span>Dato cuantitativo</span><small>Excluir textos no numéricos de la inferencia, preservándolos como trazabilidad.</small></article>
+              <article><strong>2</strong><span>n mínimo</span><small>Cada grupo necesita al menos dos resultados para correr pruebas.</small></article>
+              <article><strong>3</strong><span>Normalidad</span><small>Shapiro-Wilk decide si corresponde lectura paramétrica.</small></article>
+              <article><strong>4</strong><span>Comparación</span><small>ANOVA si aplica normalidad; Kruskal-Wallis si no aplica.</small></article>
+              <article><strong>5</strong><span>Post hoc</span><small>Si p&lt;0,05 se identifican grupos que explican la diferencia.</small></article>
+              <article><strong>6</strong><span>Interpretación</span><small>Cruzar p-valor con cauce, lluvia, operaciones, n, DE y fuente.</small></article>
+            </div>
+          </section>
+
           <div class="methodology-grid">
             <article class="panel methodology-card">
               <h2>1. Proposito y alcance</h2>
@@ -603,6 +647,22 @@
               <h2>12. Como interpretar resultados</h2>
               <p>La lectura correcta sigue este orden: confirmar fuente, revisar filtros, verificar n y comparabilidad, mirar tendencia, contrastar alertas, revisar tabla tecnica y recien despues redactar una conclusion ambiental.</p>
             </article>
+            <article class="panel methodology-card">
+              <h2>13. Agrupación según el informe v04</h2>
+              <p>En Río Paraguay se comparan puntos y años, usando campañas como repeticiones. En otros cauces superficiales se compara principalmente por año, porque los puntos cambiaron entre periodos. En pozos se analizan años y puntos, considerando que la geología puede explicar diferencias naturales.</p>
+            </article>
+            <article class="panel methodology-card">
+              <h2>14. Parámetros priorizados</h2>
+              <p>El tablero resalta nutrientes, microbiología, metales vinculados a erosión, agroquímicos detectados, aceites y grasas, y salinidad en pozos. Son temas que el informe considera sensibles para seguimiento técnico, aun cuando una prueba puntual no pruebe causalidad.</p>
+            </article>
+            <article class="panel methodology-card">
+              <h2>15. Puntos móviles y representatividad</h2>
+              <p>Cuando un punto se movió, se incorporó tarde o dejó de medirse, la app baja el peso interpretativo. En esos casos la tabla muestra el dato como referencial y pide comparar solo puntos equivalentes o series con continuidad suficiente.</p>
+            </article>
+            <article class="panel methodology-card">
+              <h2>16. Recomendación operativa</h2>
+              <p>Las señales priorizadas no son una acusación de impacto: son una lista de control para revisar laboratorio, lluvia, caudal, actividades cercanas, errores de transcripción, valores atípicos y necesidad de ampliar monitoreo.</p>
+            </article>
           </div>
         </section>
 
@@ -611,7 +671,7 @@
             <div class="panel-head">
               <div>
                 <h1>Ayuda de lectura</h1>
-                <p>Glosario breve para entender mÃ©tricas, comparabilidad y criterios estadÃ­sticos.</p>
+                <p>Glosario breve para entender métricas, comparabilidad y criterios estadísticos.</p>
               </div>
             </div>
             <div class="guide-grid" id="guideGrid"></div>
@@ -623,7 +683,7 @@
             <div class="panel-head">
               <div>
                 <h1>Ajuste seguro de metadatos</h1>
-                <p>Permite ajustar clasificaciones de puntos en esta sesiÃ³n sin modificar anexos ni Google Sheet. <button class="info" data-note="edit">(i)</button></p>
+                <p>Permite ajustar clasificaciones de puntos en esta sesión sin modificar anexos ni Google Sheet. <button class="info" data-note="edit">(i)</button></p>
               </div>
               <div class="control-actions">
                 <button id="downloadOverrides">Exportar ajustes</button>
@@ -632,7 +692,7 @@
             </div>
             <div class="edit-note">
               <strong>No toca la fuente:</strong>
-              <span>Los ajustes quedan en el navegador y pueden exportarse como JSON para revisiÃ³n controlada.</span>
+              <span>Los ajustes quedan en el navegador y pueden exportarse como JSON para revisión controlada.</span>
             </div>
             <div class="table-wrap">
               <table id="editTable"></table>

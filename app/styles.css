@@ -719,6 +719,221 @@ option {
   line-height: 1.3;
 }
 
+.evidence-panel {
+  background:
+    linear-gradient(135deg, rgba(216, 169, 40, 0.13), transparent 38%),
+    #fff;
+}
+
+.evidence-gate {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.evidence-card {
+  min-height: 118px;
+  padding: 13px;
+  background: #fff;
+  border: 1px solid var(--soft-line);
+  border-top: 5px solid var(--green-700);
+  border-radius: 8px;
+}
+
+.evidence-card.warn {
+  border-top-color: var(--yellow);
+  background: var(--amber-soft);
+}
+
+.evidence-card.bad {
+  border-top-color: var(--red);
+  background: #fff8f5;
+}
+
+.evidence-card.none {
+  border-top-color: #6b7280;
+}
+
+.evidence-card strong,
+.evidence-card span,
+.evidence-card small {
+  display: block;
+}
+
+.evidence-card strong {
+  color: var(--green-950);
+  font-size: 13px;
+}
+
+.evidence-card span {
+  margin-top: 7px;
+  color: var(--ink);
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.evidence-card small {
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.32;
+}
+
+.consultancy-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.consultancy-card {
+  min-height: 178px;
+  padding: 13px;
+  background: var(--wash);
+  border: 1px solid var(--soft-line);
+  border-left: 5px solid var(--blue);
+  border-radius: 8px;
+}
+
+.consultancy-card.high {
+  border-left-color: var(--red);
+  background: #fff8f5;
+}
+
+.consultancy-card.medium {
+  border-left-color: var(--yellow);
+  background: var(--amber-soft);
+}
+
+.consultancy-card.empty {
+  grid-column: 1 / -1;
+  min-height: 96px;
+  border-left-color: #6b7280;
+}
+
+.consultancy-card strong,
+.consultancy-card span,
+.consultancy-card small,
+.consultancy-card em {
+  display: block;
+}
+
+.consultancy-card strong {
+  color: var(--green-950);
+  font-size: 14px;
+}
+
+.consultancy-card span {
+  margin-top: 8px;
+  color: var(--ink);
+  line-height: 1.36;
+}
+
+.consultancy-card small,
+.consultancy-card em {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.32;
+}
+
+.consultancy-card em {
+  color: var(--green-950);
+  font-style: normal;
+  font-weight: 800;
+}
+
+.watchlist-panel {
+  background:
+    linear-gradient(135deg, rgba(23, 115, 70, 0.08), transparent 44%),
+    #fff;
+}
+
+.watchlist-figure {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.watch-item {
+  display: grid;
+  align-content: space-between;
+  gap: 10px;
+  min-height: 160px;
+  padding: 13px;
+  background: #fff;
+  border: 1px solid var(--soft-line);
+  border-top: 5px solid var(--watch-color);
+  border-radius: 8px;
+}
+
+.watch-item.none {
+  opacity: 0.62;
+}
+
+.watch-item strong {
+  display: block;
+  color: var(--green-950);
+  font-size: 14px;
+}
+
+.watch-item span,
+.watch-item small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.watch-meter {
+  height: 10px;
+  overflow: hidden;
+  background: #e7eee7;
+  border-radius: 999px;
+}
+
+.watch-meter i {
+  display: block;
+  min-width: 2px;
+  height: 100%;
+  background: var(--watch-color);
+}
+
+.priority-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  color: #fff;
+  background: var(--blue);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.priority-pill.high {
+  background: var(--red);
+}
+
+.priority-pill.medium {
+  color: #4d3900;
+  background: var(--yellow);
+}
+
+.priority-pill.referential {
+  color: var(--ink);
+  background: #e7ece7;
+}
+
+.muted-cell {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .panel {
   padding: 18px;
 }
@@ -1764,6 +1979,53 @@ tr:hover td {
   margin-bottom: 14px;
 }
 
+.method-flow-panel {
+  margin-bottom: 14px;
+  background:
+    linear-gradient(135deg, rgba(47, 111, 163, 0.08), transparent 42%),
+    #fff;
+}
+
+.method-flow {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.method-flow article {
+  min-height: 156px;
+  padding: 13px;
+  background: var(--wash);
+  border: 1px solid var(--soft-line);
+  border-radius: 8px;
+}
+
+.method-flow strong {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  color: #fff;
+  background: var(--green-850);
+  border-radius: 999px;
+  font-size: 13px;
+}
+
+.method-flow span {
+  display: block;
+  margin-top: 10px;
+  color: var(--green-950);
+  font-weight: 900;
+}
+
+.method-flow small {
+  display: block;
+  margin-top: 7px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
 .methodology-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1827,6 +2089,9 @@ tr:hover td {
   .advanced-grid,
   .metric-grid,
   .analyst-grid,
+  .evidence-gate,
+  .consultancy-grid,
+  .watchlist-figure,
   .insight-grid,
   .qa-grid,
   .figure-grid,
@@ -1837,6 +2102,7 @@ tr:hover td {
   .capture-grid,
   .parameter-entry-grid,
   .guide-grid,
+  .method-flow,
   .methodology-grid,
   .source-grid,
   .rio-kpis,

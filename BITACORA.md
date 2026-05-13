@@ -469,3 +469,25 @@
   - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/?v=1d3fbf5` respondio 200 y ya contiene login inicial, metodologia y carga guiada.
   - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/app.js?v=1d3fbf5` respondio 200 y ya contiene `bootstrapAuthentication`, `lockApp`, `unlockApp` y `authCheck`.
   - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/styles.css?v=1d3fbf5` respondio 200 y ya contiene `login-gate`, `auth-locked`, `methodology-grid` y `capture-steps`.
+
+### Integracion del informe estadistico de consultoria v04
+- El usuario solicito estudiar en profundidad `G:\Mi unidad\MONITOREO_AGUA\Informe de consultoria\Informe analisis estadistico calidad de agua PARACEL v04.docx` para ultra mejorar analisis, tablas y figuras del tablero.
+- Lectura tecnica del informe:
+  - Documento revisado con `python-docx`: 399 parrafos, 14 tablas y 7 secciones.
+  - El informe exige separar datos cuantitativos de textos/no detectados, usar n>=2 por grupo como condicion minima, revisar normalidad con Shapiro-Wilk, aplicar ANOVA cuando corresponde y Kruskal-Wallis cuando no hay normalidad o la muestra es pequena.
+  - En Rio Paraguay se comparan puntos y anos usando campanas como repeticiones; en otros cauces superficiales se debe extremar cautela porque los puntos cambiaron, se movieron o dejaron de medirse; en pozos se separa la variabilidad hidrogeologica natural de senales operativas.
+  - Senales priorizadas extraidas del informe: nutrientes y microbiologia en Rio Paraguay; hierro/aluminio/color/oxigeno como lectura de erosion o arrastre; agroquimicos detectados con seguimiento de persistencia; aceites y grasas en cauces forestales; coliformes en Pitanohaga; sales/conductividad/SDT en pozos y cauces con variabilidad.
+- Cambios aplicados al tablero:
+  - Nueva seccion `Puerta de evidencia estadistica` en el resumen: dato cuantitativo, n minimo, punto comparable y pruebas disponibles para el filtro activo.
+  - Nueva seccion `Parametros que merecen atencion tecnica`: figura por temas de vigilancia y tabla `consultancyPriorityTable` con prioridad, tema, donde mirar, lectura del informe v04, soporte en el filtro y accion sugerida.
+  - Se agrego una capa de senales `consultancySignals` y categorias `watchlistCategories` en `app/app.js`, vinculadas a los datos filtrados, tests estadisticos, alertas por desvio y comparabilidad.
+  - La tabla de series ahora incluye columna `Lectura v04` para indicar si cada fila coincide con una senal priorizada, es solo referencial o requiere revision por desvio.
+  - La vista `Metodologia` incorpora una ruta estadistica de 6 pasos: dato cuantitativo, n minimo, normalidad, comparacion, post hoc e interpretacion.
+  - Se reparo mojibake visible en `app/index.html` para que tildes, enes y simbolos se lean correctamente.
+- Verificaciones realizadas:
+  - `node --check app\app.js`: correcto.
+  - `git diff --check`: sin errores.
+  - Edge headless sobre `file:///G:/Mi%20unidad/MONITOREO_AGUA/app/index.html`: renderizo `Puerta de evidencia estadistica`, `Río Paraguay: metales, color y oxígeno`, `watch-item high`, `consultancyPriorityTable` y no mostro `Uncaught`, `TypeError` ni `ReferenceError`.
+  - Servidor local `http://127.0.0.1:8798/app/?qa=consultoria`: respuesta 200 y contiene `evidenceGate` y `consultancyPriorityTable`.
+  - `http://127.0.0.1:8798/app/app.js?qa=consultoria`: respuesta 200 y contiene `renderConsultancyLayer`.
+  - `http://127.0.0.1:8798/app/styles.css?qa=consultoria`: respuesta 200 y contiene `watchlist-figure`.

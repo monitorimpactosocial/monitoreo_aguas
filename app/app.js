@@ -90,6 +90,22 @@ const notes = {
     title: "Demostración estadística",
     text: "El informe aplica Shapiro-Wilk para normalidad, ANOVA si la distribución es compatible con normalidad y Kruskal-Wallis para datos no paramétricos. p<0,05 indica diferencia estadísticamente significativa.",
   },
+  consultancyMethod: {
+    title: "Método de la consultoría",
+    text: "La ruta del informe v04 es conservadora: solo datos cuantitativos, grupos con n>=2, Shapiro-Wilk para normalidad, ANOVA si corresponde, Kruskal-Wallis si no corresponde normalidad y post hoc cuando p<0,05.",
+  },
+  evidenceGate: {
+    title: "Puerta de evidencia",
+    text: "La puerta resume si el filtro permite una conclusión defendible o solo una lectura exploratoria. Cruza dato numérico, n mínimo, comparabilidad del punto, pruebas disponibles, alertas y trazabilidad.",
+  },
+  priorityWatchlist: {
+    title: "Lista de vigilancia",
+    text: "La consultoría recomienda mirar con especial cuidado nutrientes, microbiología, metales asociados a erosión, agroquímicos detectados, aceites y grasas, y salinidad en pozos. La figura ordena esos temas para el filtro actual.",
+  },
+  consultancySignal: {
+    title: "Señal del informe v04",
+    text: "Una señal priorizada no demuestra impacto por sí sola. Indica dónde revisar laboratorio, campaña, lluvia, caudal, ubicación del punto, valores atípicos y pruebas estadísticas antes de redactar conclusiones.",
+  },
   source: {
     title: "Trazabilidad",
     text: "La columna fuente muestra archivo, hoja y fila del anexo usado. Esto permite revisar cálculos de la consultora y corregir la capa normalizada si se detecta una interpretación de tabla que deba ajustarse.",
@@ -211,6 +227,162 @@ const captureParameters = [
   { key: "Fipronil", label: "Fipronil" },
   { key: "Isoxaflutole", label: "Isoxaflutole" },
   { key: "Haloxifop", label: "Haloxifop" },
+];
+
+const watchlistCategories = [
+  {
+    key: "nutrientes",
+    label: "Nutrientes",
+    color: "#d8a928",
+    parameters: ["nitrogeno_total", "nitritos", "nitratos", "n_amoniacal", "amoniaco", "fosforo_total", "ortofosfatos", "ortosfato_fosfato", "clorofila_a"],
+    note: "Fósforo, nitrógeno y clorofila orientan riesgo de eutrofización y cambios de productividad.",
+  },
+  {
+    key: "microbiologia",
+    label: "Microbiología",
+    color: "#c1423b",
+    parameters: ["coliformes_totales", "coliformes_fecales", "e_coli"],
+    note: "Coliformes y E. coli requieren lectura por cauce, lluvia, descarga y uso aguas arriba.",
+  },
+  {
+    key: "metales_erosion",
+    label: "Metales / erosión",
+    color: "#8f6a1c",
+    parameters: ["aluminio", "hierro_soluble", "zinc", "color", "turbidez", "solidos_suspendidos_totales", "sst"],
+    note: "Aluminio, hierro, zinc, color y turbidez pueden responder a erosión, arrastre y movimiento de suelo.",
+  },
+  {
+    key: "agroquimicos",
+    label: "Agroquímicos",
+    color: "#6b5aa6",
+    parameters: ["tiametoxam", "imidacloprid", "glifosato", "ampa", "tebuconazole", "fipronil", "sulfluramida", "glufositano", "glufosinato", "flumioxazin", "isoxaflutole", "haloxifop"],
+    note: "El informe pide seguimiento de persistencia, transporte y formulaciones usadas en manejo forestal.",
+  },
+  {
+    key: "salinidad_pozos",
+    label: "Salinidad / pozos",
+    color: "#2f6fa3",
+    parameters: ["conductividad_electrica", "sdt", "solidos_disueltos_totales", "cloruros", "sodio", "alcalinidad", "bicarbonatos", "carbonatos", "sulfatos", "calcio", "magnesio"],
+    note: "En agua subterránea conviene vigilar sales, conductividad, SDT y variación propia del acuífero.",
+  },
+  {
+    key: "aceites_organica",
+    label: "Aceites / carga orgánica",
+    color: "#00837a",
+    parameters: ["aceites_y_grasas", "demanda_biologica_de_oxigeno", "demanda_quimica_de_oxigeno", "materia_organica", "oxigeno_disuelto"],
+    note: "Aceites, DBO, DQO y oxígeno disuelto ayudan a detectar carga orgánica o eventos puntuales.",
+  },
+];
+
+const consultancySignals = [
+  {
+    title: "Río Paraguay: nutrientes en FW02-PY",
+    theme: "Nutrientes",
+    priority: "Alta",
+    waterBodies: ["rio paraguay"],
+    points: ["FW02-PY"],
+    parameters: ["nitritos", "nitrogeno_total", "nitratos", "n_amoniacal", "fosforo_total", "ortofosfatos"],
+    evidence: "El informe identifica a FW02-PY como punto a observar para nitritos y nitrógeno total, con lectura por gradiente entrada-medio-salida.",
+    action: "Comparar FW01, FW02 y FW03 por campaña, revisar lluvia/caudal y confirmar si el patrón se repite antes de atribuir causa.",
+  },
+  {
+    title: "Río Paraguay: microbiología",
+    theme: "Microbiología",
+    priority: "Alta",
+    waterBodies: ["rio paraguay"],
+    parameters: ["coliformes_totales", "coliformes_fecales", "e_coli"],
+    evidence: "La consultoría reporta diferencias en coliformes totales entre puntos y aumento temporal de coliformes fecales en el bloque histórico.",
+    action: "Separar entrada, medio y salida, revisar campañas con lluvia y contrastar con fuentes de descarga aguas arriba.",
+  },
+  {
+    title: "Río Paraguay: metales, color y oxígeno",
+    theme: "Metales / erosión",
+    priority: "Media",
+    waterBodies: ["rio paraguay"],
+    parameters: ["aluminio", "hierro_soluble", "color", "turbidez", "oxigeno_disuelto"],
+    evidence: "El informe remarca aumentos o cambios relevantes en aluminio, hierro soluble, color y oxígeno disuelto, con cautela porque FW01-PY es aguas arriba.",
+    action: "Leer hierro junto con color/turbidez y documentar movimiento de suelo, erosión, lluvia y posibles valores atípicos.",
+  },
+  {
+    title: "Agroquímicos detectados",
+    theme: "Agroquímicos",
+    priority: "Media",
+    parameters: ["tiametoxam", "imidacloprid", "glifosato", "tebuconazole", "fipronil", "sulfluramida", "glufositano", "glufosinato", "flumioxazin"],
+    evidence: "La consultoría detectó pocos agroquímicos con datos suficientes para comparar; recomienda mantener seguimiento y estudiar transporte/persistencia.",
+    action: "Filtrar por agroquímico, punto y campaña; registrar formulaciones/adjuvantes usados y revisar detecciones repetidas.",
+  },
+  {
+    title: "Aceites y grasas en cauces forestales",
+    theme: "Aceites / carga orgánica",
+    priority: "Media",
+    waterBodies: ["laguna penayo", "negla", "trementina", "rio paraguay"],
+    parameters: ["aceites_y_grasas"],
+    evidence: "Laguna Penayo, Negla y Trementina aparecen en el informe con incrementos o señales temporales de aceites y grasas.",
+    action: "Revisar si hay repetición por campaña, confirmar laboratorio y evaluar caracterización de hidrocarburos si la señal persiste.",
+  },
+  {
+    title: "Hermosa: hierro soluble y fósforo",
+    theme: "Metales / erosión",
+    priority: "Media",
+    waterBodies: ["hermosa"],
+    parameters: ["hierro_soluble", "fosforo_total", "ortofosfatos"],
+    evidence: "El informe destaca aumento de hierro soluble en 2023 y descenso de fósforo total desde 2022 para Arroyo Hermosa.",
+    action: "Cruzar hierro con color/turbidez y revisar erosión, lluvia, caminos y cambios de uso del suelo cercanos.",
+  },
+  {
+    title: "Negla: sales y turbidez",
+    theme: "Salinidad / pozos",
+    priority: "Media",
+    waterBodies: ["negla"],
+    parameters: ["conductividad_electrica", "sdt", "solidos_disueltos_totales", "turbidez", "aceites_y_grasas"],
+    evidence: "Negla muestra señales temporales en conductividad, SDT, turbidez y aceites, con posibles efectos de sequía y variabilidad hidrológica.",
+    action: "Leer años secos y lluviosos por separado y evitar comparar puntos que no tengan continuidad.",
+  },
+  {
+    title: "Pitanohaga: microbiología con puntos no equivalentes",
+    theme: "Microbiología",
+    priority: "Alta",
+    waterBodies: ["pitanohaga"],
+    parameters: ["coliformes_totales", "coliformes_fecales", "e_coli"],
+    evidence: "La consultoría advierte cambios importantes de coliformes, pero con puntos que dejaron o empezaron a monitorearse.",
+    action: "Usar solo puntos comparables y revisar posible aporte sanitario informal aguas arriba antes de concluir.",
+  },
+  {
+    title: "Trementina: aceites, clorofila y zinc",
+    theme: "Metales / erosión",
+    priority: "Media",
+    waterBodies: ["trementina"],
+    parameters: ["aceites_y_grasas", "clorofila_a", "zinc"],
+    evidence: "Trementina combina señal de aceites, descenso de clorofila y aumento de zinc en 2023.",
+    action: "Cruzar zinc con erosión, fertilización, agroquímicos, lluvia y puntos de muestreo equivalentes.",
+  },
+  {
+    title: "Río Aquidabán: pH y señales variables",
+    theme: "Aceites / carga orgánica",
+    priority: "Media",
+    waterBodies: ["rio aquidaban", "aquidaban"],
+    parameters: ["ph", "coliformes_totales", "coliformes_fecales", "hierro_soluble", "materiales_flotantes"],
+    evidence: "El informe solo encuentra variación significativa de pH, pero menciona coliformes, materiales flotantes e hierro con alta variabilidad.",
+    action: "Interpretar con lluvia/caudal y separar señales persistentes de eventos aislados.",
+  },
+  {
+    title: "Pozos industriales: diferencias entre puntos",
+    theme: "Salinidad / pozos",
+    priority: "Alta",
+    waterBodies: ["pozos industriales"],
+    medium: "agua subterranea",
+    evidence: "En pozos industriales la mayoría de los parámetros no fue paramétrica y muchos puntos difirieron significativamente.",
+    action: "No mezclar pozos como si fueran homogéneos; revisar por pozo, acuífero, salinidad y microbiología.",
+  },
+  {
+    title: "Pozos forestales: lectura hidrogeológica",
+    theme: "Salinidad / pozos",
+    priority: "Media",
+    waterBodies: ["pozos forestales"],
+    medium: "agua subterranea",
+    evidence: "El informe advierte que el agua subterránea refleja formaciones geológicas y puede variar naturalmente entre pozos.",
+    action: "Comparar dentro del mismo pozo y usar conductividad/SDT/cloruros como lista de control de salinidad.",
+  },
 ];
 
 let overrides = loadOverrides();
@@ -555,6 +727,7 @@ function renderAll() {
   renderFilterSummary(rows);
   renderMetrics(rows);
   renderAnalystBrief(rows);
+  renderConsultancyLayer(rows);
   renderChart(rows);
   renderSummaryFigures(rows);
   renderLiveMap(rows);
@@ -647,6 +820,248 @@ function renderAnalystBrief(rows) {
 
 function analystCard(title, value, note, cls = "") {
   return `<article class="analyst-card ${escapeAttr(cls)}"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(value)}</span><small>${escapeHtml(note)}</small></article>`;
+}
+
+function renderConsultancyLayer(rows) {
+  renderEvidenceGate(rows);
+  renderConsultancyBrief(rows);
+  renderWatchlistFigure(rows);
+  renderConsultancyPriorityTable(rows);
+}
+
+function renderEvidenceGate(rows) {
+  const root = document.querySelector("#evidenceGate");
+  if (!root) return;
+  const total = rows.length;
+  const numericRows = rows.filter((row) => numeric(row.value));
+  const nReady = rows.filter((row) => Number(row.n || 0) >= 2);
+  const comparable = rows.filter((row) => row.comparable);
+  const testRows = filteredTests();
+  const significant = testRows.filter((row) => row.significant);
+  const cards = [
+    {
+      title: "Dato cuantitativo",
+      value: `${formatInt(numericRows.length)}/${formatInt(total)}`,
+      note: "Solo estos registros entran en estadística inferencial.",
+      level: numericRows.length ? "ok" : "bad",
+    },
+    {
+      title: "n mínimo",
+      value: `${formatInt(nReady.length)} con n>=2`,
+      note: "Umbral mínimo usado por la consultoría para comparar grupos.",
+      level: nReady.length / Math.max(1, total) >= 0.6 ? "ok" : "warn",
+    },
+    {
+      title: "Punto comparable",
+      value: formatPercent(comparable.length / Math.max(1, total)),
+      note: "Reduce el riesgo creado por puntos movidos o discontinuos.",
+      level: comparable.length / Math.max(1, total) >= 0.65 ? "ok" : comparable.length ? "warn" : "bad",
+    },
+    {
+      title: "Pruebas disponibles",
+      value: `${formatInt(testRows.length)} test`,
+      note: `${formatInt(significant.length)} con p<0,05 en el filtro actual.`,
+      level: testRows.length ? (significant.length ? "warn" : "ok") : "none",
+    },
+  ];
+  root.innerHTML = cards
+    .map(
+      (card) => `<article class="evidence-card ${escapeAttr(card.level)}">
+        <strong>${escapeHtml(card.title)}</strong>
+        <span>${escapeHtml(card.value)}</span>
+        <small>${escapeHtml(card.note)}</small>
+      </article>`,
+    )
+    .join("");
+}
+
+function renderConsultancyBrief(rows) {
+  const root = document.querySelector("#consultancyBrief");
+  if (!root) return;
+  if (!rows.length) {
+    root.innerHTML = `<article class="consultancy-card empty"><strong>Sin lectura priorizada</strong><span>El filtro no contiene registros. Quite filtros o seleccione otro cauce, punto o parámetro.</span></article>`;
+    return;
+  }
+  const matches = consultancyMatches(rows).slice(0, 4);
+  if (!matches.length) {
+    root.innerHTML = `<article class="consultancy-card empty"><strong>Sin señal específica del informe v04</strong><span>La selección no coincide con las señales priorizadas de la consultoría. Revise la tabla de series para n, DE, base y fuente.</span></article>`;
+    return;
+  }
+  root.innerHTML = matches
+    .map(
+      (match) => `<article class="consultancy-card ${escapeAttr(priorityClass(match.signal.priority))}">
+        <strong>${escapeHtml(match.signal.title)} <button class="info inline-note" data-note="consultancySignal">(i)</button></strong>
+        <span>${escapeHtml(match.signal.evidence)}</span>
+        <small>${escapeHtml(consultancySupportText(match))}</small>
+        <em>${escapeHtml(match.signal.action)}</em>
+      </article>`,
+    )
+    .join("");
+  wireInfoButtons(root);
+}
+
+function renderWatchlistFigure(rows) {
+  const root = document.querySelector("#watchlistFigure");
+  if (!root) return;
+  const stats = watchlistStats(rows);
+  const maxScore = Math.max(...stats.map((item) => item.score), 1);
+  root.innerHTML = stats
+    .map((item) => {
+      const width = item.score ? Math.max(6, Math.round((item.score / maxScore) * 100)) : 0;
+      return `<article class="watch-item ${escapeAttr(item.level)}" style="--watch-color:${escapeAttr(item.color)}">
+        <div>
+          <strong>${escapeHtml(item.label)}</strong>
+          <span>${escapeHtml(item.note)}</span>
+        </div>
+        <div class="watch-meter"><i style="width:${width}%"></i></div>
+        <small>${formatInt(item.records)} registros · ${formatInt(item.alerts)} desvíos · ${formatInt(item.significant)} p&lt;0,05</small>
+      </article>`;
+    })
+    .join("");
+}
+
+function renderConsultancyPriorityTable(rows) {
+  const matches = consultancyMatches(rows).slice(0, 12);
+  if (!matches.length) {
+    renderTable("#consultancyPriorityTable", ["Tema", "Lectura", "Soporte", "Acción"], [["Sin señal priorizada", "El filtro actual no coincide con la lista de vigilancia del informe v04.", "Revise n, DE y fuente en la tabla de series.", "Amplíe filtros o seleccione un parámetro sensible."]]);
+    return;
+  }
+  renderTable(
+    "#consultancyPriorityTable",
+    [noteHeader("Prioridad", "consultancySignal"), "Tema", "Dónde mirar", "Lectura del informe v04", "Soporte en filtro", "Acción sugerida"],
+    matches.map((match) => [
+      priorityPill(match.signal.priority),
+      match.signal.theme,
+      compactList([
+        ...(match.signal.waterBodies || []).map(labelFromNormalized),
+        ...(match.signal.points || []),
+        match.signal.medium ? "Agua subterránea" : "",
+      ]),
+      match.signal.evidence,
+      consultancySupportText(match),
+      match.signal.action,
+    ]),
+  );
+}
+
+function consultancyMatches(rows) {
+  const testRows = filteredTests();
+  return consultancySignals
+    .map((signal) => {
+      const signalRows = rows.filter((row) => signalRowMatches(row, signal));
+      const signalTests = testRows.filter((row) => signalTestMatches(row, signal));
+      if (!signalRows.length && !signalTests.length) return null;
+      const alerts = flaggedRows(signalRows).length;
+      const significant = signalTests.filter((row) => row.significant).length;
+      const comparable = signalRows.filter((row) => row.comparable).length;
+      const score = priorityWeight(signal.priority) + signalRows.length + alerts * 5 + significant * 6 + comparable * 0.5;
+      return { signal, rows: signalRows, tests: signalTests, alerts, significant, comparable, score };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.score - a.score || priorityWeight(b.signal.priority) - priorityWeight(a.signal.priority));
+}
+
+function signalRowMatches(row, signal) {
+  const water = normalizeText(row.water_body);
+  const medium = normalizeText(row.medium);
+  const point = normalizeText(row.point);
+  const parameterKey = normalizeText(row.parameter_key || row.parameter);
+  const waterMatch = !signal.waterBodies?.length || signal.waterBodies.some((item) => water.includes(normalizeText(item)));
+  const mediumMatch = !signal.medium || medium.includes(normalizeText(signal.medium));
+  const pointMatch = !signal.points?.length || signal.points.some((item) => point === normalizeText(item) || point.includes(normalizeText(item)));
+  const parameterMatch = !signal.parameters?.length || signal.parameters.some((item) => parameterKey === normalizeText(item) || parameterKey.includes(normalizeText(item)));
+  return waterMatch && mediumMatch && pointMatch && parameterMatch;
+}
+
+function signalTestMatches(row, signal) {
+  const water = normalizeText(row.water_body);
+  const medium = normalizeText(row.medium);
+  const group = normalizeText(row.group || row.grouping);
+  const parameterKey = normalizeText(row.parameter_key || row.parameter);
+  const waterMatch = !signal.waterBodies?.length || signal.waterBodies.some((item) => water.includes(normalizeText(item)));
+  const mediumMatch = !signal.medium || medium.includes(normalizeText(signal.medium));
+  const pointMatch = !signal.points?.length || signal.points.some((item) => group.includes(normalizeText(item)));
+  const parameterMatch = !signal.parameters?.length || signal.parameters.some((item) => parameterKey === normalizeText(item) || parameterKey.includes(normalizeText(item)));
+  return waterMatch && mediumMatch && pointMatch && parameterMatch;
+}
+
+function watchlistStats(rows) {
+  const testRows = filteredTests();
+  return watchlistCategories.map((category) => {
+    const categoryRows = rows.filter((row) => categoryRowMatches(row, category));
+    const categoryTests = testRows.filter((row) => categoryRowMatches(row, category));
+    const alerts = flaggedRows(categoryRows).length;
+    const significant = categoryTests.filter((row) => row.significant).length;
+    const referential = categoryRows.filter((row) => !row.comparable).length;
+    const score = categoryRows.length + alerts * 4 + significant * 5 + referential * 0.5;
+    const level = alerts || significant ? "high" : categoryRows.length ? "medium" : "none";
+    return { ...category, records: categoryRows.length, alerts, significant, referential, score, level };
+  });
+}
+
+function categoryRowMatches(row, category) {
+  const key = normalizeText(row.parameter_key || row.parameter);
+  return category.parameters.some((parameter) => key === normalizeText(parameter) || key.includes(normalizeText(parameter)));
+}
+
+function consultancySupportText(match) {
+  const params = unique(match.rows.map((row) => row.parameter)).slice(0, 3);
+  const points = unique(match.rows.map((row) => row.point)).slice(0, 3);
+  const rowText = match.rows.length
+    ? `${pluralText(match.rows.length, "registro", "registros")}, ${pluralText(match.comparable, "comparable", "comparables")}, ${pluralText(match.alerts, "desvío", "desvíos")}`
+    : "sin registros directos en el filtro";
+  const testText = match.tests.length ? `${pluralText(match.tests.length, "prueba", "pruebas")}, ${pluralText(match.significant, "significativa", "significativas")}` : "sin prueba estadística filtrada";
+  const detail = compactList([params.join(", "), points.join(", ")]);
+  return `${rowText}; ${testText}${detail ? ` · ${detail}` : ""}.`;
+}
+
+function consultancyCell(row) {
+  const signal = consultancySignals.find((item) => signalRowMatches(row, item));
+  if (signal) {
+    return `${priorityPill(signal.priority)}<br><small>${escapeHtml(signal.theme)} · ${escapeHtml(signal.title)}</small>`;
+  }
+  if (!row.comparable || Number(row.n || 0) < 2) {
+    return `${priorityPill("Referencial")}<br><small>n o continuidad insuficiente para inferencia fuerte.</small>`;
+  }
+  if (numeric(row.deviation_score) && Math.abs(row.deviation_score) >= Number(dom.deviationLimit.value)) {
+    return `${priorityPill("Media")}<br><small>Desvío sobre la banda configurada; revisar fuente y campaña.</small>`;
+  }
+  return `<span class="muted-cell">Sin prioridad específica del informe v04</span>`;
+}
+
+function priorityPill(priority) {
+  return `<span class="priority-pill ${escapeAttr(priorityClass(priority))}">${escapeHtml(priority)}</span>`;
+}
+
+function priorityClass(priority) {
+  const value = normalizeText(priority);
+  if (value.includes("alta")) return "high";
+  if (value.includes("media")) return "medium";
+  if (value.includes("referencial")) return "referential";
+  return "low";
+}
+
+function priorityWeight(priority) {
+  const cls = priorityClass(priority);
+  if (cls === "high") return 100;
+  if (cls === "medium") return 60;
+  if (cls === "referential") return 20;
+  return 30;
+}
+
+function compactList(items) {
+  return items.map((item) => String(item || "").trim()).filter(Boolean).join(" · ");
+}
+
+function pluralText(value, singular, plural) {
+  const number = Number(value || 0);
+  return `${formatInt(number)} ${number === 1 ? singular : plural}`;
+}
+
+function labelFromNormalized(value) {
+  return String(value || "")
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function renderSummaryFigures(rows) {
@@ -1237,7 +1652,7 @@ function renderEvolutionTable(rows) {
     .filter((row) => row.value !== null && row.value !== undefined)
     .sort((a, b) => Math.abs(b.delta_pct_vs_baseline || 0) - Math.abs(a.delta_pct_vs_baseline || 0))
     .slice(0, 600);
-  renderTable("#evolutionTable", ["Cauce", "Punto", noteHeader("Tipo", "colorHelp"), "Parámetro", "Periodo", noteHeader("n", "nMetric"), noteHeader("Valor", "valueMetric"), noteHeader("Base 2021", "baseline"), noteHeader("Δ 2021", "deltaBase"), noteHeader("Base 2023", "baseline"), noteHeader("Δ 2023", "deltaBase"), noteHeader("Estado", "status")], sorted.map((row) => [
+  renderTable("#evolutionTable", ["Cauce", "Punto", noteHeader("Tipo", "colorHelp"), "Parámetro", "Periodo", noteHeader("n", "nMetric"), noteHeader("Valor", "valueMetric"), noteHeader("Base 2021", "baseline"), noteHeader("Δ 2021", "deltaBase"), noteHeader("Base 2023", "baseline"), noteHeader("Δ 2023", "deltaBase"), noteHeader("Lectura v04", "consultancySignal"), noteHeader("Estado", "status")], sorted.map((row) => [
     row.water_body,
     row.point,
     chip(row.point_type),
@@ -1249,6 +1664,7 @@ function renderEvolutionTable(rows) {
     formatPercent(row.delta_pct_vs_2021),
     formatNumber(row.baseline_2023_value),
     formatPercent(row.delta_pct_vs_2023),
+    consultancyCell(row),
     row.comparable ? "Comparable" : "Referencial",
   ]));
 }
@@ -1258,7 +1674,7 @@ function renderEvolutionDetailTable(rows) {
     .filter((row) => row.value !== null && row.value !== undefined)
     .sort((a, b) => Math.abs(b.delta_pct_vs_baseline || 0) - Math.abs(a.delta_pct_vs_baseline || 0))
     .slice(0, 700);
-  renderTable("#evolutionDetailTable", ["Componente", "Medio", "Cauce", "Punto", noteHeader("Tipo", "colorHelp"), "Parametro", "Periodo", noteHeader("n", "nMetric"), noteHeader("Valor", "valueMetric"), noteHeader("DE", "sdMetric"), noteHeader("Base 2021", "baseline"), noteHeader("Delta 2021", "deltaBase"), noteHeader("Base 2023", "baseline"), noteHeader("Delta 2023", "deltaBase"), noteHeader("Representatividad", "representativeness"), noteHeader("Estado", "status")], sorted.map((row) => [
+  renderTable("#evolutionDetailTable", ["Componente", "Medio", "Cauce", "Punto", noteHeader("Tipo", "colorHelp"), "Parametro", "Periodo", noteHeader("n", "nMetric"), noteHeader("Valor", "valueMetric"), noteHeader("DE", "sdMetric"), noteHeader("Base 2021", "baseline"), noteHeader("Delta 2021", "deltaBase"), noteHeader("Base 2023", "baseline"), noteHeader("Delta 2023", "deltaBase"), noteHeader("Lectura v04", "consultancySignal"), noteHeader("Representatividad", "representativeness"), noteHeader("Estado", "status")], sorted.map((row) => [
     row.component,
     row.medium,
     row.water_body,
@@ -1273,6 +1689,7 @@ function renderEvolutionDetailTable(rows) {
     formatPercent(row.delta_pct_vs_2021),
     formatNumber(row.baseline_2023_value),
     formatPercent(row.delta_pct_vs_2023),
+    consultancyCell(row),
     row.representativeness_note || "",
     row.comparable ? "Comparable" : "Referencial",
   ]));
@@ -2442,6 +2859,15 @@ function clearMulti(select) {
 
 function unique(values) {
   return [...new Set(values.filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "es"));
+}
+
+function normalizeText(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
 }
 
 function countBy(rows, getter) {
