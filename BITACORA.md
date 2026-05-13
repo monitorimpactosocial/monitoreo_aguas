@@ -365,3 +365,37 @@
   - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/index.html?v=645f515-2` ya contiene `seriesTrendChart`.
   - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/app.js?v=645f515-2` ya contiene `drawTrendChart` y `stablePointIndex`.
   - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/styles.css?v=645f515-2` ya contiene `gis-stream`.
+
+### Panel lateral de filtros y lectura analitica
+- El usuario solicito mover todos los elementos de filtro al panel lateral izquierdo porque el encabezado ocupaba demasiado espacio y tapaba la informacion.
+- Se reorganizo la arquitectura visual:
+  - `control-deck` paso a ser un panel lateral izquierdo (`aside`) sticky.
+  - El area de resultados quedo separada como `workspace`.
+  - Los filtros principales, comparabilidad, leyenda, foco del mapa, opciones avanzadas, exportes y accesos de administracion quedaron en el lateral.
+  - Los modos del mapa (`Todos`, `Entrada/salida`, `Alertas`, `Comparables`) salieron del panel del mapa y pasaron al lateral.
+- Se agrego un resumen de filtro activo en el panel lateral:
+  - Sistema.
+  - Parametros seleccionados y cantidad real con datos.
+  - Puntos seleccionados o visibles.
+  - Años activos.
+- Se agrego un bloque de diagnostico automatico en el resumen ejecutivo:
+  - Cobertura del filtro.
+  - Calidad de comparacion.
+  - Señal principal por cambio porcentual frente a linea de base.
+  - Alerta tecnica y composicion por tipo de punto.
+- Se corrigio una inconsistencia de dependencias entre filtros:
+  - Al cambiar el cauce o sistema, se limpian puntos incompatibles.
+  - Si el cauce pertenece a un unico componente y medio, la app ajusta automaticamente esos filtros. Ejemplo validado: `Arroyos forestales` alinea `Forestal` + `Agua superficial`.
+  - Al cambiar componente o medio, se limpia el cauce y los puntos para evitar combinaciones imposibles.
+- Verificaciones realizadas:
+  - `node --check app\app.js`: correcto.
+  - `node --check app\gis_map.js`: correcto.
+  - `git diff --check`: sin errores.
+  - Servidor local `http://127.0.0.1:8795/app/`: respuesta 200.
+  - Captura escritorio: `C:\tmp\monitoreo_agua_sidebar_analitico_v3.png`.
+  - Captura movil: `C:\tmp\monitoreo_agua_sidebar_analitico_mobile.png`.
+  - Prueba Playwright de interaccion:
+    - El lateral contiene los 4 modos del mapa y el panel del mapa ya no contiene botones de filtro.
+    - El diagnostico ejecutivo renderiza 4 tarjetas.
+    - La seleccion `Arroyos forestales` + `Aluminio` alinea `Forestal` + `Agua superficial`, devuelve 6 series, 1 punto visible y 2 lineas en el grafico.
+    - La vista `Series` mantiene 2 lineas y 6 filas para ese filtro.

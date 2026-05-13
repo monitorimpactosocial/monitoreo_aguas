@@ -26,13 +26,13 @@
       </nav>
     </header>
 
-    <main>
-      <section class="control-deck" aria-label="Filtros principales">
+    <main class="app-shell">
+      <aside class="control-deck" aria-label="Filtros principales">
         <div class="control-intro">
           <div>
             <span class="eyebrow">Consulta guiada</span>
-            <h1>Qué se quiere revisar</h1>
-            <p>Seleccione un cauce, uno o varios parámetros y el periodo. Lo demás queda disponible como ajuste avanzado.</p>
+            <h1>Filtros de análisis</h1>
+            <p>Seleccione el sistema, los puntos, el periodo y la lectura estadística. Todo el tablero responde a este panel.</p>
           </div>
           <div class="control-actions">
             <button id="quickRio" class="ghost">Río Paraguay</button>
@@ -40,6 +40,8 @@
             <button id="clearFilters">Limpiar</button>
           </div>
         </div>
+
+        <div id="activeFilterSummary" class="filter-summary" aria-live="polite"></div>
 
         <div class="primary-filters">
           <label>
@@ -73,6 +75,16 @@
           <span class="legend-pill"><i class="legend-dot entrada"></i>Entrada</span>
           <span class="legend-pill"><i class="legend-dot medio"></i>Intermedio</span>
           <span class="legend-pill"><i class="legend-dot salida"></i>Salida</span>
+        </div>
+
+        <div class="side-filter-block">
+          <span>Foco del mapa</span>
+          <div class="map-modes side-map-modes" aria-label="Modo del mapa">
+            <button class="is-active" data-map-mode="all">Todos</button>
+            <button data-map-mode="flow">Entrada / salida</button>
+            <button data-map-mode="alerts">Alertas</button>
+            <button data-map-mode="comparable">Comparables</button>
+          </div>
         </div>
 
         <details class="advanced-box">
@@ -120,20 +132,21 @@
             <button class="tab utility-tab" data-view="edit">Ajustar metadatos</button>
           </div>
         </details>
-      </section>
+      </aside>
 
-      <section id="notePanel" class="note-panel" hidden>
-        <button id="closeNote" aria-label="Cerrar nota">×</button>
-        <strong id="noteTitle"></strong>
-        <p id="noteText"></p>
-      </section>
+      <section class="workspace" aria-label="Resultados del monitoreo">
+        <section id="notePanel" class="note-panel" hidden>
+          <button id="closeNote" aria-label="Cerrar nota">×</button>
+          <strong id="noteTitle"></strong>
+          <p id="noteText"></p>
+        </section>
 
-      <div class="view-stack">
+        <div class="view-stack">
         <section class="view is-active" id="dashboard">
           <div class="context-card">
             <span class="eyebrow">Resumen ejecutivo</span>
             <h1>Monitoreo de agua</h1>
-            <p>La pantalla resume cobertura, comparabilidad y desvíos del filtro actual. Las tablas completas quedan separadas para no mezclar exploración técnica con lectura ejecutiva.</p>
+            <p>Lectura ejecutiva del filtro actual: cobertura, comparabilidad, señales de cambio y puntos que requieren revisión técnica.</p>
           </div>
 
           <div class="metric-grid">
@@ -159,18 +172,23 @@
             </article>
           </div>
 
+          <section class="panel analyst-panel">
+            <div class="panel-head compact-head">
+              <div>
+                <span class="eyebrow">Diagnóstico del filtro</span>
+                <h1>Qué dice la selección actual</h1>
+                <p>Resumen automático para evitar leer series aisladas como conclusión ambiental. <button class="info" data-note="reading">(i)</button></p>
+              </div>
+            </div>
+            <div id="analystBrief" class="analyst-grid"></div>
+          </section>
+
           <section class="panel map-panel">
             <div class="panel-head">
               <div>
                 <span class="eyebrow">Mapa vivo</span>
                 <h1>Lectura territorial del monitoreo</h1>
-                <p>Los puntos se dibujan como una red de cauces, pozos y entradas/salidas. Use los botones para cambiar el foco sin perder el filtro general.</p>
-              </div>
-              <div class="map-modes" aria-label="Modo del mapa">
-                <button class="is-active" data-map-mode="all">Todos</button>
-                <button data-map-mode="flow">Entrada / salida</button>
-                <button data-map-mode="alerts">Alertas</button>
-                <button data-map-mode="comparable">Comparables</button>
+                <p>Los puntos se dibujan como una red de cauces, pozos y entradas/salidas. El foco del mapa se controla desde el panel lateral para mantener limpia la lectura.</p>
               </div>
             </div>
             <div class="live-map-layout">
@@ -494,7 +512,8 @@
             </div>
           </section>
         </section>
-      </div>
+        </div>
+      </section>
     </main>
 
     <script src="./monitoring_dataset.js"></script>

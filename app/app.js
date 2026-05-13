@@ -252,7 +252,7 @@ function bindEvents() {
     button.addEventListener("click", () => setView(button.dataset.view));
   });
   Object.values(dom).forEach((element) => {
-    if (element) element.addEventListener("change", renderAll);
+    if (element) element.addEventListener("change", handleFilterChange);
   });
   dom.deviationLimit.addEventListener("input", () => {
     dom.deviationLabel.textContent = `±${dom.deviationLimit.value} DE`;
@@ -281,6 +281,27 @@ function bindEvents() {
     document.querySelector("#notePanel").hidden = true;
   });
   wireInfoButtons(document);
+}
+
+function handleFilterChange(event) {
+  if (event.currentTarget === dom.waterBodyFilter) {
+    alignParentsToWaterBody();
+    clearMulti(dom.pointFilter);
+  } else if ([dom.componentFilter, dom.mediumFilter].includes(event.currentTarget)) {
+    dom.waterBodyFilter.value = "";
+    clearMulti(dom.pointFilter);
+  }
+  renderAll();
+}
+
+function alignParentsToWaterBody() {
+  const waterBody = dom.waterBodyFilter.value;
+  if (!waterBody) return;
+  const matches = series.filter((row) => row.water_body === waterBody);
+  const components = unique(matches.map((row) => row.component));
+  const media = unique(matches.map((row) => row.medium));
+  if (components.length === 1) dom.componentFilter.value = components[0];
+  if (media.length === 1) dom.mediumFilter.value = media[0];
 }
 
 function setView(view) {
@@ -464,7 +485,9 @@ function filteredTests() {
 function renderAll() {
   document.body.dataset.view = activeView;
   const rows = filteredSeries();
+  renderFilterSummary(rows);
   renderMetrics(rows);
+  renderAnalystBrief(rows);
   renderChart(rows);
   renderSummaryFigures(rows);
   renderLiveMap(rows);
@@ -499,6 +522,64 @@ function renderMetrics(rows) {
   setText("#metricPoints", formatInt(unique(rows.map((row) => rowPointId(row))).length));
   setText("#metricParams", formatInt(unique(rows.map((row) => row.parameter_key)).length));
   setText("#metricAlerts", formatInt(alerts.length));
+}
+
+function renderFilterSummary(rows) {
+  const root = document.querySelector("#activeFilterSummary");
+  if (!root) return;
+  const pointCount = unique(rows.map((row) => rowPointId(row))).length;
+  const paramCount = unique(rows.map((row) => row.parameter_key)).length;
+  root.innerHTML = `<strong>Filtro activo</strong>
+    <span><b>Sistema:</b> ${escapeHtml(selectedLabel(dom.waterBodyFilter) || "Todos")}</span>
+    <span><b>Parámetros:</b> ${escapeHtml(selectedLabels(dom.parameterFilter, 2) || "Todos")} (${formatInt(paramCount)} en datos)</span>
+    <span><b>Puntos:</b> ${escapeHtml(selectedLabels(dom.pointFilter, 1) || "Todos")} (${formatInt(pointCount)} visibles)</span>
+    <span><b>Años:</b> ${escapeHtml(selectedLabels(dom.yearFilter, 3) || "Todos")}</span>`;
+}
+
+function renderAnalystBrief(rows) {
+  const root = document.querySelector("#analystBrief");
+  if (!root) return;
+  if (!rows.length) {
+    root.innerHTML = analystCard("Sin datos", "El filtro actual no devuelve registros. Abra el panel lateral y quite puntos, años o parámetros hasta recuperar cobertura.", "No conviene interpretar una vista vacía.", "warning");
+    return;
+  }
+
+  const points = unique(rows.map((row) => rowPointId(row))).length;
+  const parameters = unique(rows.map((row) => row.parameter_key)).length;
+  const years = unique(rows.map((row) => row.year).filter((year) => Number.isFinite(Number(year))));
+  const comparable = rows.filter((row) => row.comparable).length;
+  const comparableRatio = comparable / Math.max(1, rows.length);
+  const alerts = flaggedRows(rows);
+  const strongestChange = rows
+    .filter((row) => numeric(row.delta_pct_vs_baseline) && numeric(row.value))
+    .sort((a, b) => Math.abs(b.delta_pct_vs_baseline) - Math.abs(a.delta_pct_vs_baseline))[0];
+  const topAlert = alerts[0];
+  const flow = countBy(rows, (row) => row.point_type || "Sin clasificar").slice(0, 3);
+  const flowText = flow.map((item) => `${item.label}: ${formatInt(item.value)}`).join(" · ") || "sin clasificación";
+  const qualityClass = comparableRatio >= 0.75 ? "" : comparableRatio >= 0.4 ? "caution" : "warning";
+  const qualityText =
+    comparableRatio >= 0.75
+      ? "La selección tiene buena base comparativa para lectura de tendencia."
+      : comparableRatio >= 0.4
+        ? "La selección mezcla evidencia comparable con registros referenciales; conviene confirmar n y años."
+        : "La selección es principalmente referencial; usar como señal exploratoria, no como demostración estadística.";
+  const changeText = strongestChange
+    ? `${strongestChange.parameter} en ${strongestChange.point}: ${formatPercent(strongestChange.delta_pct_vs_baseline)} frente a base ${strongestChange.baseline_year || "histórica"}.`
+    : "No hay delta calculado para la selección actual.";
+  const alertText = topAlert
+    ? `${topAlert.parameter} en ${topAlert.point}: ${formatNumber(topAlert.deviation_score)} DE. Revisar fuente, n y consistencia temporal.`
+    : "No hay parámetros fuera del umbral de desviación definido.";
+
+  root.innerHTML = [
+    analystCard("Cobertura", `${points} punto(s), ${parameters} parámetro(s), ${years.length || "sin"} año(s).`, `Periodos: ${years.join(", ") || "no identificados"}.`, points >= 3 ? "" : "caution"),
+    analystCard("Calidad de comparación", `${formatPercent(comparableRatio)} de las series filtradas son comparables.`, qualityText, qualityClass),
+    analystCard("Señal principal", changeText, "Ordenado por cambio porcentual absoluto contra la línea de base disponible.", strongestChange ? "info-card" : "caution"),
+    analystCard("Alerta técnica", alertText, `Composición por tipo: ${flowText}.`, topAlert ? "warning" : ""),
+  ].join("");
+}
+
+function analystCard(title, value, note, cls = "") {
+  return `<article class="analyst-card ${escapeAttr(cls)}"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(value)}</span><small>${escapeHtml(note)}</small></article>`;
 }
 
 function renderSummaryFigures(rows) {
@@ -1843,6 +1924,20 @@ function periodLabel(row) {
 
 function selectedValues(select) {
   return [...select.selectedOptions].map((option) => option.value).filter(Boolean);
+}
+
+function selectedLabel(select) {
+  const option = select?.selectedOptions?.[0];
+  return option?.value ? option.textContent || option.label || option.value : "";
+}
+
+function selectedLabels(select, limit = 2) {
+  const labels = [...(select?.selectedOptions || [])]
+    .filter((option) => option.value)
+    .map((option) => option.textContent || option.label || option.value);
+  if (!labels.length) return "";
+  const visible = labels.slice(0, limit).join(", ");
+  return labels.length > limit ? `${visible} +${labels.length - limit}` : visible;
 }
 
 function selectValues(select, values) {
