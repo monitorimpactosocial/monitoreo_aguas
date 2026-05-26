@@ -656,7 +656,7 @@ function authResetPassword_(payload) {
   
   // Validate expiration
   const expireTime = new Date(user.values.ResetExpira).getTime();
-  if (expireTime < Date.now()) throw new Error('El codigo vencio. Solicite uno nuevo.');
+  if (!expireTime || isNaN(expireTime) || expireTime < Date.now()) throw new Error('El codigo vencio o no tiene vigencia valida. Solicite uno nuevo.');
   
   // Update password
   const salt = Utilities.getUuid();

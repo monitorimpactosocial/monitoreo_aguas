@@ -39,6 +39,31 @@
 - [ ] Confirmar que el usuario recibe el codigo
 - [ ] Validar que el codigo puede ser usado para restablecer contrasena
 
+#### Reintervencion de acceso - 2026-05-26 11:27 -03:00
+- Diagnostico adicional:
+  - La app estatica estaba usando como backend el deployment `@21`, mientras la bitacora inicial documentaba `@20` y el README seguia indicando `@19`.
+  - Esa desalineacion de endpoints podia dejar la recuperacion probada en un deployment pero no necesariamente activa en la app publica.
+  - El script `test_recovery.ps1` no era confiable porque fallaba al construir el payload URL-encoded y terminaba enviando `payload=` vacio.
+- Cambios aplicados:
+  - `Code.gs`: se endurecio `authResetPassword_` para rechazar codigos sin fecha de expiracion valida y pedir solicitar uno nuevo.
+  - `test_recovery.ps1`: ahora acepta `-Account` y `-ApiUrl`, usa `ConvertTo-Json` + `[uri]::EscapeDataString`, y apunta al backend vigente.
+  - `test_recovery.bat`: apunta al backend vigente y permite pasar usuario/correo como primer argumento.
+  - `app/app.js`: `defaultApiUrl` actualizado al deployment `@23`.
+  - `app/index.html`: cache-busting actualizado a `?v=20260526-auth-recovery`.
+  - `README.md`: backend vigente corregido.
+  - `Manual maestro para creación de appweb.txt`: agregada regla especifica para incidentes de acceso y recuperacion.
+- Deployments ejecutados:
+  - `npx clasp push -f`: correcto, empujo 4 archivos Apps Script.
+  - `npx clasp deploy -d "v22-password-recovery-access-fix"`: desplego `AKfycbwmRrEg1CFOwplRvZXhK8pTFJArizzIQOtDWy2uteshB2tC6V0hN5yVg6tjc2XLBFJ9VQ @22`.
+  - `npx clasp push -f`: correcto tras endurecimiento de expiracion.
+  - `npx clasp deploy -d "v23-password-recovery-expiry-guard"`: desplego backend vigente `AKfycbx1Q5p4XfPYrBxx5wRnTaERo5E0ItQWB0jI-N13gxNZK88WUt-yiZfJurIQcpfUSVpdjw @23`.
+- Verificaciones realizadas:
+  - `node --check app\app.js`: correcto.
+  - `powershell -ExecutionPolicy Bypass -File .\test_recovery.ps1 -Account __usuario_inexistente_smoke__`: backend respondio `ping` y JSONP con payload correcto; para usuario inexistente devuelve mensaje generico por seguridad.
+- Pendiente operacional:
+  - Probar con usuario/correo real registrado en `USUARIOS_APP` para confirmar recepcion del email y luego usar el codigo recibido para cambiar contrasena.
+  - Publicar/commitear los cambios de GitHub Pages para que `app/app.js` y el cache-busting nuevo queden visibles en `https://monitorimpactosocial.github.io/monitoreo_aguas/app/`.
+
 ## 2026-05-12
 
 ### Inicio de intervencion
@@ -659,3 +684,31 @@
   - Se versionaron los scripts en `app/index.html` con `?v=20260513-kmz` para reducir problemas de cache del navegador al cargar `app.js`, `gis_map.js` y `monitoring_dataset.js`.
 - Pendiente cartografico:
   - Esta correccion usa los KMZ/BD entregados para GW/FW forestal y mantiene los puntos industriales/Rio Paraguay segun la base GIS ya disponible. Si aparecen KMZ especificos de GW industrial, Rio Paraguay o canales CH, conviene agregarlos al mismo script para reemplazar cualquier ubicacion remanente de referencia.
+
+### Correccion de conteos historicos de parametros para Rio PY y Forestal
+- Fecha de trabajo: 2026-05-26 09:56 -03:00.
+- Motivo: el usuario reporto que la app indicaba 39 parametros para Rio PY, pero los conteos correctos por cobertura historica son mayores y varian por ano y componente.
+- Diagnostico:
+  - El tablero estaba contando parametros desde las series normalizadas cargadas en `app/monitoring_dataset.js`.
+  - Ese conteo es util para "parametros en datos visibles", pero no representa la cobertura historica total de las planillas cuando hay bloques, filas en blanco o anos con metadata no normalizada como serie.
+  - Por eso Rio Paraguay podia mostrar 39 parametros, aunque la lectura operativa corregida indique 69 parametros para 2021-2023, 44 para 2024 y 46 para 2025.
+- Conteos corregidos incorporados como metadata:
+  - Rio Paraguay: 2021=69, 2022=69, 2023=69, 2024=44, 2025=46.
+  - Forestal: 2021=69, 2022=69, 2023=69, 2024=29, 2025=35.
+- Cambios aplicados:
+  - `scripts/build_dashboard_data.py`: se agrego `HISTORICAL_PARAMETER_COUNTS` y se publica en el dataset como `historical_parameter_counts`.
+  - `data/monitoring_dataset.json`: regenerado con la metadata historica corregida.
+  - `app/monitoring_dataset.js`: regenerado para que GitHub Pages y la app estatica lean los conteos corregidos.
+  - `app/app.js`: la vista Rio Paraguay ya no presenta el 39 como cobertura historica; muestra el conteo historico corregido cuando no se filtra por un parametro puntual, y mantiene "parametros en datos" cuando corresponde.
+  - `app/app.js`: los filtros de anos propios de Rio PY ahora tambien exponen 2024 y 2025 desde la metadata historica.
+  - `app/app.js`: la metrica global de parametros usa el conteo historico cuando el filtro esta en Rio Paraguay o Forestal y no hay parametro puntual seleccionado.
+  - `app/index.html`: cache-busting actualizado a `?v=20260526-param-counts`.
+  - `Manual maestro para creación de appweb.txt`: creado/actualizado con la regla de no inferir cobertura historica solo desde el conteo de series visibles.
+- Verificaciones realizadas:
+  - `python scripts\build_dashboard_data.py`: correcto; conserva `raw_records=5473`, `series_records=3136`, `statistical_tests=129`, `points=41`, `parameters=57`, `years=[2021,2022,2023]`.
+  - Validacion JSON con Python: `historical_parameter_counts` contiene Rio Paraguay 2021-2025 y Forestal 2021-2025 con los valores indicados por el usuario.
+  - Validacion de asset publicado local: `app/monitoring_dataset.js` contiene `historical_parameter_counts`, `"2025": 46` y `"2025": 35`.
+  - `node --check app\app.js`: correcto.
+- Nota tecnica:
+  - El resumen tecnico del dataset sigue mostrando `parameters=57` porque ese numero es el catalogo normalizado total integrado por anexos y pruebas; no reemplaza los conteos historicos por ano.
+  - Si luego se incorporan datos 2024/2025 como series completas, deben reconciliarse con esta metadata sin volver a depender solamente de celdas no vacias visibles.

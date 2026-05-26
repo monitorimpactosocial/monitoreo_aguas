@@ -1,0 +1,44 @@
+Manual maestro para creacion de appweb - MONITOREO_AGUA
+
+Regla de continuidad
+- Mantener siempre actualizados BITACORA.md y este manual despues de cada procedimiento o resultado relevante.
+- Registrar no solo el cambio aplicado, sino tambien el diagnostico, archivos tocados, comandos de verificacion y pendientes.
+
+Regla para conteos de parametros
+- No inferir la cobertura historica de parametros solamente desde las series normalizadas visibles en la app.
+- Diferenciar claramente:
+  1. parametros en datos: conteo dinamico de parameter_key presente bajo el filtro actual.
+  2. parametros historicos corregidos: metadata operativa por ano y componente, validada contra la lectura del usuario o planilla maestra.
+- Conteos historicos vigentes:
+  - Rio Paraguay: 2021=69, 2022=69, 2023=69, 2024=44, 2025=46.
+  - Forestal: 2021=69, 2022=69, 2023=69, 2024=29, 2025=35.
+- Publicar estos conteos en `historical_parameter_counts` dentro del dataset y consumirlos desde la UI cuando el usuario este revisando cobertura historica.
+
+Regla para Rio Paraguay
+- La vista Rio Paraguay debe funcionar como modulo independiente, con filtros propios por punto, parametro, ano y mes/campana.
+- Si no hay parametro puntual seleccionado, el KPI de parametros debe mostrar la cobertura historica corregida, no el conteo parcial de series visibles.
+- Los anos 2024 y 2025 pueden existir como metadata historica aunque todavia no existan como series normalizadas completas.
+
+Regla para Forestal
+- Cuando el filtro global este en componente Forestal y no haya parametro puntual seleccionado, la metrica de parametros debe poder usar la cobertura historica corregida.
+- Mantener separados los conteos de Forestal y Rio Paraguay; no aplanarlos en un unico contador global.
+
+Regla de cache y publicacion
+- Cada cambio visible en `app/monitoring_dataset.js`, `app/gis_map.js` o `app/app.js` debe acompanarse con cache-busting en `app/index.html`.
+- Verificar los assets locales con busquedas puntuales antes de publicar.
+
+Regla de acceso y recuperacion de contrasena
+- Mantener sincronizados `app/app.js`, `README.md`, `test_recovery.ps1` y la bitacora con el mismo backend Apps Script vigente.
+- Si falla la recuperacion, verificar primero: endpoint publicado usado por la app, `oauthScopes` con `script.send_mail`, payload JSONP real, usuario/correo existente en `USUARIOS_APP`, correo registrado y version desplegada en `clasp deployments`.
+- El test de recuperacion debe usar `[uri]::EscapeDataString((ConvertTo-Json ... -Compress))`, no `System.Web.HttpUtility`, porque ese tipo puede no estar disponible en PowerShell local.
+- Para usuarios inexistentes el backend responde un mensaje generico por seguridad; no usar esa respuesta como prueba de envio de correo.
+
+Comandos minimos de verificacion
+- `python scripts\build_dashboard_data.py`
+- `node --check app\app.js`
+- `powershell -ExecutionPolicy Bypass -File .\test_recovery.ps1 -Account "<usuario_o_correo_real>"`
+- Validar que `data/monitoring_dataset.json` y `app/monitoring_dataset.js` contienen la metadata esperada.
+
+Nota operativa
+- El resumen `summary.parameters` del dataset representa el catalogo normalizado integrado de la app, no la cobertura historica por ano.
+- Si se agregan nuevas planillas 2024/2025 o se completa la normalizacion como series, actualizar primero el extractor, luego la metadata historica, y finalmente la bitacora y este manual.

@@ -115,6 +115,35 @@ RIO_PARAGUAY_SOURCES = [
     },
 ]
 
+HISTORICAL_PARAMETER_COUNTS = {
+    "rio_paraguay": {
+        "label": "Rio Paraguay",
+        "component": "Industrial",
+        "medium": "Agua superficial",
+        "water_body": "Rio Paraguay",
+        "counts": {
+            "2021": 69,
+            "2022": 69,
+            "2023": 69,
+            "2024": 44,
+            "2025": 46,
+        },
+        "note": "Conteo historico corregido por cobertura real de planillas; no debe inferirse solo desde las series normalizadas visibles.",
+    },
+    "forestal": {
+        "label": "Forestal",
+        "component": "Forestal",
+        "counts": {
+            "2021": 69,
+            "2022": 69,
+            "2023": 69,
+            "2024": 29,
+            "2025": 35,
+        },
+        "note": "Conteo historico corregido para el componente Forestal; usar como metadata de cobertura del programa.",
+    },
+}
+
 
 def strip_accents(text: str) -> str:
     return "".join(
@@ -1196,7 +1225,7 @@ def methodology_notes() -> list[dict[str, str]]:
         },
         {
             "title": "Parametros monitoreados",
-            "text": "El programa parte de 29 parametros iniciales y actualmente ronda 35 parametros monitoreados. La app conserva mas nombres normalizados porque integra anexos de distintos medios y pruebas estadisticas.",
+            "text": "Conteo historico corregido: Rio Paraguay tiene 69 parametros en 2021-2023, 44 en 2024 y 46 en 2025. Forestal tiene 69 parametros en 2021-2023, 29 en 2024 y 35 en 2025. La app tambien conserva nombres normalizados de anexos y pruebas estadisticas.",
         },
         {
             "title": "Linea de base 2021 y 2023",
@@ -1286,6 +1315,7 @@ def main() -> None:
             ],
             "flow_types": ["Entrada", "Medio", "Salida", "Pozo", "Canal", "No clasificado", "Sin clasificar"],
         },
+        "historical_parameter_counts": HISTORICAL_PARAMETER_COUNTS,
         "rio_paraguay_sources": RIO_PARAGUAY_SOURCES,
         "point_catalog": point_catalog,
         "parameter_catalog": parameter_catalog,

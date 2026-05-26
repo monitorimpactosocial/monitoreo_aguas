@@ -1,3 +1,8 @@
+param(
+    [string]$Account = "admin",
+    [string]$ApiUrl = "https://script.google.com/macros/s/AKfycbx1Q5p4XfPYrBxx5wRnTaERo5E0ItQWB0jI-N13gxNZK88WUt-yiZfJurIQcpfUSVpdjw/exec"
+)
+
 # Test password recovery flow
 
 function Get-SHA256Hash {
@@ -7,7 +12,7 @@ function Get-SHA256Hash {
     return -join ($hash | ForEach-Object { '{0:x2}' -f $_ })
 }
 
-$apiUrl = 'https://script.google.com/macros/s/AKfycbwbucoyKXmCqeFWXft6BhOsSbB0jCO7pOiOm2XnDwqAbWGPUfs5a4ZOFqxGljgGfqiJrQ/exec'
+$apiUrl = $ApiUrl.Trim()
 
 # Test 1: Ping backend
 Write-Host "=== TEST 1: Ping Backend ===" -ForegroundColor Cyan
@@ -25,8 +30,8 @@ Write-Host ""
 
 # Test 2: Request reset code
 Write-Host "=== TEST 2: Request Reset Code ===" -ForegroundColor Cyan
-$account = "admin"
-$payload = [System.Web.HttpUtility]::UrlEncode('{"account":"' + $account + '"}')
+$account = $Account.Trim()
+$payload = [uri]::EscapeDataString((ConvertTo-Json @{ account = $account } -Compress))
 $requestUrl = "$apiUrl`?action=authRequestReset&callback=testCb&payload=$payload"
 Write-Host "URL: $requestUrl" -ForegroundColor Yellow
 try {

@@ -1,5 +1,6 @@
 const DATA = window.MONITORING_DATA || {};
 const GIS_MAP = window.PARACEL_GIS_MAP || null;
+const historicalParameterCounts = DATA.historical_parameter_counts || {};
 
 const notes = {
   filters: {
@@ -64,7 +65,7 @@ const notes = {
   },
   parameters: {
     title: "Parámetros",
-    text: "Los nombres fueron normalizados para evitar duplicados por acentos, abreviaturas o variantes como Conductividad/Conductividad eléctrica. La fuente original queda visible en trazabilidad.",
+    text: "Los nombres fueron normalizados para evitar duplicados por acentos, abreviaturas o variantes. Para cobertura historica, usar los conteos corregidos: Rio Paraguay 69 en 2021-2023, 44 en 2024 y 46 en 2025; Forestal 69 en 2021-2023, 29 en 2024 y 35 en 2025.",
   },
   deviation: {
     title: "Límite de desviación",
@@ -216,7 +217,7 @@ const overrideKey = "paracel-water-overrides-v1";
 const authStorageKey = "paracel-water-auth-v1";
 const pendingCaptureKey = "paracel-water-pending-captures-v1";
 const apiUrlStorageKey = "paracel-water-api-url-v1";
-const defaultApiUrl = "https://script.google.com/macros/s/AKfycbyS18uAGEq5g_OW40k4zpOaI-zglSJXn8-K1RfCkPxLlM2HhQgOsWpFPp9gdmi61aUnHQ/exec";
+const defaultApiUrl = "https://script.google.com/macros/s/AKfycbx1Q5p4XfPYrBxx5wRnTaERo5E0ItQWB0jI-N13gxNZK88WUt-yiZfJurIQcpfUSVpdjw/exec";
 const apiUrl = window.PARACEL_WATER_API_URL || localStorage.getItem(apiUrlStorageKey) || defaultApiUrl;
 const captureParameters = [
   { key: "Temperatura", label: "Temperatura" },
@@ -824,10 +825,11 @@ function renderAll() {
 
 function renderMetrics(rows) {
   const alerts = flaggedRows(rows);
+  const historicalParams = historicalParameterLabelForCurrentFilter(rows);
   setText("#metricSeries", formatInt(rows.length));
   setText("#metricSeriesSub", `${formatInt(rows.filter((row) => row.comparable).length)} comparables`);
   setText("#metricPoints", formatInt(unique(rows.map((row) => rowPointId(row))).length));
-  setText("#metricParams", formatInt(unique(rows.map((row) => row.parameter_key)).length));
+  setText("#metricParams", historicalParams || formatInt(unique(rows.map((row) => row.parameter_key)).length));
   setText("#metricAlerts", formatInt(alerts.length));
 }
 
@@ -836,9 +838,10 @@ function renderFilterSummary(rows) {
   if (!root) return;
   const pointCount = unique(rows.map((row) => rowPointId(row))).length;
   const paramCount = unique(rows.map((row) => row.parameter_key)).length;
+  const historicalParams = historicalParameterLabelForCurrentFilter(rows);
   root.innerHTML = `<strong>Filtro activo</strong>
     <span><b>Sistema:</b> ${escapeHtml(selectedLabel(dom.waterBodyFilter) || "Todos")}</span>
-    <span><b>Parámetros:</b> ${escapeHtml(selectedLabels(dom.parameterFilter, 2) || "Todos")} (${formatInt(paramCount)} en datos)</span>
+    <span><b>Parámetros:</b> ${escapeHtml(selectedLabels(dom.parameterFilter, 2) || "Todos")} (${escapeHtml(historicalParams ? `${historicalParams} historicos` : `${formatInt(paramCount)} en datos`)})</span>
     <span><b>Puntos:</b> ${escapeHtml(selectedLabels(dom.pointFilter, 1) || "Todos")} (${formatInt(pointCount)} visibles)</span>
     <span><b>Años:</b> ${escapeHtml(selectedLabels(dom.yearFilter, 3) || "Todos")}</span>`;
 }
@@ -1847,16 +1850,42 @@ function renderDataDetailTable(rows) {
   ]));
 }
 
+function historicalParameterLabel(entryKey, years = []) {
+  const entry = historicalParameterCounts[entryKey];
+  const counts = entry?.counts || {};
+  const selectedYears = years.map(String).filter((year) => counts[year]);
+  if (selectedYears.length === 1) return formatInt(counts[selectedYears[0]]);
+  if (selectedYears.length > 1) return selectedYears.map((year) => `${formatInt(counts[year])} ${year}`).join(" / ");
+  const orderedYears = Object.keys(counts).sort();
+  const values = [];
+  orderedYears.forEach((year) => {
+    if (!values.includes(counts[year])) values.push(counts[year]);
+  });
+  return values.map(formatInt).join(" / ");
+}
+
+function historicalParameterLabelForCurrentFilter(rows) {
+  if (selectedValues(dom.parameterFilter).length) return "";
+  const years = selectedValues(dom.yearFilter);
+  const component = dom.componentFilter.value;
+  const waterBody = normalizeText(dom.waterBodyFilter.value);
+  if (waterBody === "rio_paraguay") return historicalParameterLabel("rio_paraguay", years);
+  if (component === "Forestal") return historicalParameterLabel("forestal", years);
+  if (!component && rows.length && rows.every((row) => row.component === "Forestal")) return historicalParameterLabel("forestal", years);
+  return "";
+}
+
 function renderRioParaguay() {
   const rioRows = filteredRioRows();
   const monthlyRows = rioRows.filter((row) => row.month && numeric(row.value));
   const sources = DATA.rio_paraguay_sources || [];
+  const historicalRioParams = rioState.parameters.size ? "" : historicalParameterLabel("rio_paraguay", [...rioState.years]);
   document.querySelector("#rioSourceCards").innerHTML = sources
     .map((source) => `<article class="source-card"><strong>${escapeHtml(source.role)}</strong><span>${escapeHtml(source.file)} · ${escapeHtml(source.sheet)}</span></article>`)
     .join("");
   document.querySelector("#rioKpis").innerHTML = `
     <div><strong>${formatInt(rioRows.length)}</strong><span>series filtradas</span></div>
-    <div><strong>${formatInt(unique(rioRows.map((row) => row.parameter_key)).length)}</strong><span>parámetros</span></div>
+    <div><strong>${escapeHtml(historicalRioParams || formatInt(unique(rioRows.map((row) => row.parameter_key)).length))}</strong><span>${historicalRioParams ? "parametros historicos corregidos" : "parametros en datos"}</span></div>
     <div><strong>${formatInt(monthlyRows.length)}</strong><span>registros mensuales</span></div>
   `;
   renderRioControls();
@@ -1939,7 +1968,8 @@ function renderRioControls() {
     "parameters",
     unique(rows.map((row) => row.parameter_key)).map((key) => ({ value: key, label: rows.find((row) => row.parameter_key === key)?.parameter || key })),
   );
-  renderRioChoiceBoard("#rioYearChoices", "years", unique(rows.map((row) => row.year).filter(Boolean)).map((year) => ({ value: String(year), label: String(year) })));
+  const rioYears = unique([...rows.map((row) => row.year).filter(Boolean), ...Object.keys(historicalParameterCounts.rio_paraguay?.counts || {})]);
+  renderRioChoiceBoard("#rioYearChoices", "years", rioYears.map((year) => ({ value: String(year), label: String(year) })));
   renderRioChoiceBoard(
     "#rioMonthChoices",
     "months",
@@ -2393,8 +2423,8 @@ function renderGuide() {
       text: "La regla operativa es rojo=entrada, verde=salida y amarillo=intermedio. Si el color no está preservado en el anexo local, la app muestra la clasificación equivalente y su fuente.",
     },
     {
-      title: "29 parámetros iniciales y 35 actuales",
-      text: "El programa comenzó con un conjunto inicial cercano a 29 parámetros y hoy ronda 35. La app muestra más etiquetas porque integra anexos, medios, abreviaturas y pruebas estadísticas normalizadas.",
+      title: "Conteos historicos corregidos",
+      text: "Rio Paraguay: 69 parametros en 2021-2023, 44 en 2024 y 46 en 2025. Forestal: 69 parametros en 2021-2023, 29 en 2024 y 35 en 2025. Estos conteos no se infieren solo desde celdas visibles del Excel.",
     },
     {
       title: "Cómo leer una métrica",
