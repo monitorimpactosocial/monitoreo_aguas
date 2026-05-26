@@ -62,7 +62,11 @@
   - `powershell -ExecutionPolicy Bypass -File .\test_recovery.ps1 -Account __usuario_inexistente_smoke__`: backend respondio `ping` y JSONP con payload correcto; para usuario inexistente devuelve mensaje generico por seguridad.
 - Pendiente operacional:
   - Probar con usuario/correo real registrado en `USUARIOS_APP` para confirmar recepcion del email y luego usar el codigo recibido para cambiar contrasena.
-  - Publicar/commitear los cambios de GitHub Pages para que `app/app.js` y el cache-busting nuevo queden visibles en `https://monitorimpactosocial.github.io/monitoreo_aguas/app/`.
+- Publicacion GitHub Pages:
+  - `git commit -m "fix: alinear recuperacion de contrasena"` genero commit `0809bee`.
+  - `git push origin main`: correcto, remoto `main` actualizado de `afe8292` a `0809bee`.
+  - Verificacion inicial de Pages mostro cache anterior; tras reintento con cache-buster `0809bee_retry2_1779795276`, `https://monitorimpactosocial.github.io/monitoreo_aguas/app/` respondio 200 y contiene `20260526-auth-recovery`.
+  - `https://monitorimpactosocial.github.io/monitoreo_aguas/app/app.js?v=0809bee_retry2_1779795276` respondio 200 y contiene el backend vigente `AKfycbx1Q5p4XfPYrBxx5wRnTaERo5E0ItQWB0jI-N13gxNZK88WUt-yiZfJurIQcpfUSVpdjw`.
 
 ## 2026-05-12
 
