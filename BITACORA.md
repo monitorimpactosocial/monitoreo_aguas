@@ -1,5 +1,44 @@
 # Bitacora - Monitoreo de Agua PARACEL
 
+## 2026-05-26
+
+### Diagnostico y correccion: Recuperacion de contrasena no funciona
+- El usuario reporto que el flujo de recuperacion de contrasena no funcionaba.
+- Se identifico que `MailApp.sendEmail()` fallaba silenciosamente porque faltaban los permisos OAuth en `appsscript.json`.
+
+#### Problema
+- El archivo `appsscript.json` no incluia la seccion `oauthScopes` con el scope `script.send_mail` necesario para usar `MailApp.sendEmail()`.
+- Resultado: Los intentos de enviar el codigo de recuperacion fallaban sin error visible, dejando al usuario sin codigo y sin mensaje de error claro.
+
+#### Soluciones Implementadas
+1. **Configuracion de permisos en appsscript.json**:
+   - Se agrego la seccion `oauthScopes` con dos scopes:
+     - `https://www.googleapis.com/auth/spreadsheets`: Para acceder a hojas
+     - `https://www.googleapis.com/auth/script.send_mail`: Para enviar emails
+   
+2. **Mejora en authRequestReset_ (Code.gs)**:
+   - Se agrego validacion: verificar que el usuario tenga correo registrado
+   - Se envolvio MailApp.sendEmail() en try-catch para capturar errores explicitamente
+   - Se mejoron los mensajes de error para diagnostico
+   - Se agrego auditoria de intentos fallidos
+   
+3. **Mejora en authResetPassword_ (Code.gs)**:
+   - Se agregaron validaciones mas claras y explicitass
+   - Se valida que ResetHash existe antes de comparar (no sea vacio)
+   - Se valida la expiracion antes de intentar cambiar contrasena
+   - Mensajes de error mas descriptivos para cada caso
+   - Se actualizo mensaje de exito para ser mas claro
+
+#### Deployment
+- `npx clasp push -f`: Empujo 4 archivos (appsscript.json, Code.gs, DataImport.gs, index.html)
+- `npx clasp deploy -d "v20-fix-password-recovery"`: Desplego version `AKfycbwbucoyKXmCqeFWXft6BhOsSbB0jCO7pOiOm2XnDwqAbWGPUfs5a4ZOFqxGljgGfqiJrQ @20`
+
+#### Verificaciones Pendientes
+- [ ] Probar flujo completo de recuperacion
+- [ ] Verificar que email se envía correctamente
+- [ ] Confirmar que el usuario recibe el codigo
+- [ ] Validar que el codigo puede ser usado para restablecer contrasena
+
 ## 2026-05-12
 
 ### Inicio de intervencion

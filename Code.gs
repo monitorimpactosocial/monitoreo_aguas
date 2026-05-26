@@ -521,15 +521,23 @@ function handleAuthAction_(action, payload) {
 function parsePayload_(e) {
   let payload = {};
   if (e && e.postData && e.postData.contents) {
-    payload = JSON.parse(e.postData.contents);
+    try {
+      payload = JSON.parse(e.postData.contents);
+    } catch(err) {
+      Logger.log('Error parsing POST payload: ' + err.toString());
+    }
   }
   if (e && e.parameter) {
     Object.keys(e.parameter).forEach(function(key) {
       if (key !== 'payload' && key !== 'callback') payload[key] = e.parameter[key];
     });
     if (e.parameter.payload) {
-      const extra = JSON.parse(e.parameter.payload);
-      Object.keys(extra).forEach(function(key) { payload[key] = extra[key]; });
+      try {
+        const extra = JSON.parse(e.parameter.payload);
+        Object.keys(extra).forEach(function(key) { payload[key] = extra[key]; });
+      } catch(err) {
+        Logger.log('Error parsing URL payload: ' + err.toString() + ' | Payload text: ' + e.parameter.payload);
+      }
     }
   }
   return payload;
@@ -607,17 +615,26 @@ function authRequestReset_(payload) {
   const account = String(payload.account || '').trim().toLowerCase();
   const user = findUser_(account) || findUserByEmail_(account);
   if (!user) return { success: true, message: 'Si el usuario existe, se enviara un codigo al correo registrado.' };
+  
+  if (!user.values.Correo) {
+    appendAudit_(user.values.Usuario, 'authRequestReset', 'USUARIOS_APP', '', '', '', '', 'Intento fallido: sin correo registrado', '', 'Apps Script');
+    return { success: false, error: 'El usuario no tiene correo registrado. Contacte al administrador.' };
+  }
+  
   const code = Utilities.getUuid().replace(/-/g, '').slice(0, 6).toUpperCase();
   const expires = new Date(Date.now() + 30 * 60 * 1000);
   user.sheet.getRange(user.row, user.index.ResetHash + 1).setValue(hash_(code));
   user.sheet.getRange(user.row, user.index.ResetExpira + 1).setValue(expires);
-  if (user.values.Correo) {
-    MailApp.sendEmail({
-      to: user.values.Correo,
-      subject: 'Codigo de recuperacion - Monitoreo de agua PARACEL',
-      body: 'Codigo de recuperacion: ' + code + '\nVence en 30 minutos.\nSi no solicito este cambio, ignore este mensaje.'
-    });
+  
+  try {
+    MailApp.sendEmail(user.values.Correo, 
+      'Codigo de recuperacion - Monitoreo de agua PARACEL',
+      'Codigo de recuperacion: ' + code + '\nVence en 30 minutos.\nSi no solicito este cambio, ignore este mensaje.');
+  } catch(err) {
+    appendAudit_(user.values.Usuario, 'authRequestReset', 'USUARIOS_APP', '', '', '', '', 'Error al enviar correo: ' + err.toString(), '', 'Apps Script');
+    throw new Error('No se pudo enviar el codigo al correo. Intente mas tarde o contacte al administrador.');
   }
+  
   appendAudit_(user.values.Usuario, 'authRequestReset', 'USUARIOS_APP', '', '', '', '', 'Codigo de recuperacion solicitado', '', 'Apps Script');
   return { success: true, message: 'Codigo enviado al correo registrado.' };
 }
@@ -627,17 +644,29 @@ function authResetPassword_(payload) {
   const code = String(payload.code || '').trim().toUpperCase();
   const passwordDigest = String(payload.passwordDigest || '').trim();
   const user = findUser_(account) || findUserByEmail_(account);
+  
   if (!user) throw new Error('No se encontro el usuario.');
-  if (!code || hash_(code) !== user.values.ResetHash) throw new Error('Codigo incorrecto.');
-  if (new Date(user.values.ResetExpira).getTime() < Date.now()) throw new Error('El codigo vencio.');
+  if (!code) throw new Error('El codigo es requerido.');
+  if (!passwordDigest) throw new Error('La contrasena es requerida.');
   if (!/^[a-f0-9]{64}$/i.test(passwordDigest)) throw new Error('Contrasena invalida.');
+  
+  // Validate reset hash is present
+  if (!user.values.ResetHash) throw new Error('No se solicito cambio de contrasena. Use "Recuperar" para solicitar un codigo.');
+  if (hash_(code) !== user.values.ResetHash) throw new Error('Codigo incorrecto.');
+  
+  // Validate expiration
+  const expireTime = new Date(user.values.ResetExpira).getTime();
+  if (expireTime < Date.now()) throw new Error('El codigo vencio. Solicite uno nuevo.');
+  
+  // Update password
   const salt = Utilities.getUuid();
   user.sheet.getRange(user.row, user.index.PasswordHash + 1).setValue(hash_(salt + ':' + passwordDigest));
   user.sheet.getRange(user.row, user.index.Salt + 1).setValue(salt);
   user.sheet.getRange(user.row, user.index.ResetHash + 1).setValue('');
   user.sheet.getRange(user.row, user.index.ResetExpira + 1).setValue('');
+  
   appendAudit_(user.values.Usuario, 'authResetPassword', 'USUARIOS_APP', '', '', '', '', 'Contrasena actualizada por recuperacion', '', 'Apps Script');
-  return { success: true, message: 'Contrasena actualizada.' };
+  return { success: true, message: 'Contrasena actualizada. Puede ingresar con su nuevo acceso.' };
 }
 
 function authCheck_(token) {

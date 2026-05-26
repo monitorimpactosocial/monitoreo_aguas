@@ -216,7 +216,7 @@ const overrideKey = "paracel-water-overrides-v1";
 const authStorageKey = "paracel-water-auth-v1";
 const pendingCaptureKey = "paracel-water-pending-captures-v1";
 const apiUrlStorageKey = "paracel-water-api-url-v1";
-const defaultApiUrl = "https://script.google.com/macros/s/AKfycbx_nVf5X3Y1VBsfMXWmFLxFmS4Xl8YuJtBB28wmtdHKZfE1T-b2HDhuZoMX76s_b0NS4w/exec";
+const defaultApiUrl = "https://script.google.com/macros/s/AKfycbyS18uAGEq5g_OW40k4zpOaI-zglSJXn8-K1RfCkPxLlM2HhQgOsWpFPp9gdmi61aUnHQ/exec";
 const apiUrl = window.PARACEL_WATER_API_URL || localStorage.getItem(apiUrlStorageKey) || defaultApiUrl;
 const captureParameters = [
   { key: "Temperatura", label: "Temperatura" },
